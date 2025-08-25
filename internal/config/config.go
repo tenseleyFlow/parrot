@@ -40,6 +40,8 @@ type GeneralConfig struct {
 	Personality  string `toml:"personality"`   // "savage", "sarcastic", "mild"
 	FallbackMode bool   `toml:"fallback_mode"` // Use hardcoded responses only
 	Debug        bool   `toml:"debug"`         // Debug logging
+	Colors       bool   `toml:"colors"`        // Enable colored output
+	Enhanced     bool   `toml:"enhanced"`      // Enhanced formatting with borders/emphasis
 }
 
 // Default configuration
@@ -64,6 +66,8 @@ func DefaultConfig() *Config {
 			Personality:  "savage",
 			FallbackMode: false,
 			Debug:        false,
+			Colors:       true,
+			Enhanced:     false,
 		},
 	}
 }
@@ -71,6 +75,11 @@ func DefaultConfig() *Config {
 // Config file paths in order of preference
 func GetConfigPaths() []string {
 	var paths []string
+	
+	// 0. Environment-specified config path (highest priority)
+	if configPath := os.Getenv("PARROT_CONFIG"); configPath != "" {
+		paths = append(paths, configPath)
+	}
 	
 	// 1. System-wide config (for RPM installs)
 	paths = append(paths, "/etc/parrot/config.toml")
@@ -145,6 +154,12 @@ func loadFromEnv(config *Config) {
 	}
 	if os.Getenv("PARROT_DEBUG") == "true" {
 		config.General.Debug = true
+	}
+	if os.Getenv("PARROT_NO_COLOR") == "true" || os.Getenv("NO_COLOR") != "" {
+		config.General.Colors = false
+	}
+	if os.Getenv("PARROT_ENHANCED") == "true" {
+		config.General.Enhanced = true
 	}
 }
 
