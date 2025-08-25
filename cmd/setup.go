@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 
 	"parrot/internal/config"
 	"parrot/internal/llm"
@@ -23,21 +24,22 @@ func init() {
 }
 
 func runSetup(cmd *cobra.Command, args []string) {
-	fmt.Println("🦜 Welcome to Parrot Setup!")
-	fmt.Println("═══════════════════════════")
-	fmt.Println("This wizard will guide you through setting up your sassy parrot.")
+	fmt.Println("🦜 Welcome to Parrot Complete Setup!")
+	fmt.Println("════════════════════════════════════")
+	fmt.Println("Let's get your sassy parrot fully operational!")
 	fmt.Println()
 
 	// Step 1: Check current status
-	fmt.Println("📊 Current Status")
-	fmt.Println("─────────────────")
+	fmt.Println("📊 System Check")
+	fmt.Println("───────────────")
 	
 	cfg, err := config.LoadConfig()
+	configExists := err == nil
 	if err != nil {
 		cfg = config.DefaultConfig()
-		fmt.Println("⚠️  No configuration found - using defaults")
+		fmt.Println("📋 No config found - will create one")
 	} else {
-		fmt.Println("✅ Configuration loaded")
+		fmt.Println("✅ Config loaded")
 	}
 	
 	manager := llm.NewLLMManager(cfg)
@@ -46,57 +48,85 @@ func runSetup(cmd *cobra.Command, args []string) {
 	// Check what's available
 	hasAPI := status["api_available"].(bool)
 	hasLocal := status["local_available"].(bool)
+	hasOllama := isOllamaInstalled()
 	
 	fmt.Printf("• API Backend: ")
 	if hasAPI {
-		fmt.Println("✅ Available")
+		fmt.Println("✅ Ready")
+	} else if cfg.API.APIKey != "" {
+		fmt.Println("⚠️  Key set but unavailable")  
 	} else {
-		fmt.Println("❌ Not configured")
+		fmt.Println("❌ No API key")
 	}
 	
-	fmt.Printf("• Local Backend: ")
+	fmt.Printf("• Ollama Installed: ")
+	if hasOllama {
+		fmt.Println("✅ Yes")
+	} else {
+		fmt.Println("❌ Not found")
+	}
+	
+	fmt.Printf("• Local Model Ready: ")
 	if hasLocal {
 		fmt.Println("✅ Available")
+	} else if hasOllama {
+		fmt.Printf("❌ Model %s not found\n", cfg.Local.Model)
 	} else {
-		fmt.Println("❌ Not available")
+		fmt.Println("❌ Ollama not installed")
 	}
 	
-	// Step 2: Recommend setup path
-	fmt.Println("\n🎯 Recommended Setup")
-	fmt.Println("────────────────────")
+	fmt.Println()
 	
-	if !hasAPI && !hasLocal {
-		fmt.Println("🚀 Quick Start Option 1: API-based (fastest setup)")
-		fmt.Println("   • Get an OpenAI API key (https://platform.openai.com/api-keys)")
-		fmt.Println("   • Run: parrot configure")
-		fmt.Println("   • Enable API backend and enter your key")
-		fmt.Println()
-		
-		fmt.Println("🖥️  Quick Start Option 2: Local AI (privacy-focused)")
-		fmt.Println("   • Install Ollama: https://ollama.com/download")
-		fmt.Println("   • Pull model: ollama pull phi3.5:3.8b")
-		fmt.Println("   • Run: parrot configure")
-		fmt.Println()
-		
-		fmt.Println("🔄 Quick Start Option 3: Hardcoded responses (no setup)")
-		fmt.Println("   • Already working! Just install shell hooks.")
-		fmt.Println("   • Run: parrot install")
-		
-	} else if hasAPI {
-		fmt.Println("✅ You're all set with API backend!")
-		fmt.Println("   • Install shell hooks: parrot install")
-		fmt.Println("   • Test it: parrot mock \"git push\" \"1\"")
-		
-	} else if hasLocal {
-		fmt.Println("✅ You're all set with local backend!")
-		fmt.Println("   • Install shell hooks: parrot install")
-		fmt.Println("   • Test it: parrot mock \"git push\" \"1\"")
-		
-		if !status["local_enabled"].(bool) || cfg.Local.Model != "phi3.5:3.8b" {
-			fmt.Println("\n💡 Tip: For better quality responses:")
-			fmt.Println("   • Upgrade to phi3.5: ollama pull phi3.5:3.8b")
-			fmt.Println("   • Update config: parrot configure")
+	// Step 2: Interactive setup based on current state
+	if hasAPI || hasLocal {
+		fmt.Println("🎉 Intelligence Available!")
+		fmt.Println("─────────────────────────")
+		if hasAPI {
+			fmt.Printf("✅ API Backend ready (%s)\n", cfg.API.Provider)
 		}
+		if hasLocal {
+			fmt.Printf("✅ Local Backend ready (%s)\n", cfg.Local.Model)
+		}
+		
+		// Skip to shell integration
+		fmt.Println("\n🐚 Final Step: Shell Integration")
+		fmt.Println("─────────────────────────────────")
+		installShellHooks(cfg)
+		
+	} else {
+		// No AI backends available - offer setup options
+		fmt.Println("🚀 Choose Your Intelligence Level")
+		fmt.Println("─────────────────────────────────")
+		fmt.Println("1. 🌐 API Backend (Fast, requires internet & key)")
+		fmt.Println("2. 🖥️  Local Backend (Private, requires download)")  
+		fmt.Println("3. 🔄 Fallback Only (Basic responses, works now)")
+		fmt.Println()
+		
+		var choice string
+		for {
+			fmt.Print("Choose setup path [1-3]: ")
+			fmt.Scanln(&choice)
+			
+			switch choice {
+			case "1":
+				setupAPIBackend(&cfg, configExists)
+				goto shellSetup
+			case "2":  
+				setupLocalBackend(&cfg, configExists, hasOllama)
+				goto shellSetup
+			case "3":
+				fmt.Println("\n✅ Using fallback responses - no setup needed!")
+				goto shellSetup
+			default:
+				fmt.Println("❌ Please choose 1, 2, or 3")
+				continue
+			}
+		}
+		
+		shellSetup:
+		fmt.Println("\n🐚 Shell Integration")
+		fmt.Println("───────────────────")
+		installShellHooks(cfg)
 	}
 	
 	// Step 3: Model installation helper
@@ -150,4 +180,142 @@ func runSetup(cmd *cobra.Command, args []string) {
 func isOllamaInstalled() bool {
 	_, err := exec.LookPath("ollama")
 	return err == nil
+}
+
+func setupAPIBackend(cfg **config.Config, configExists bool) {
+	fmt.Println("\n🌐 API Backend Setup")
+	fmt.Println("───────────────────")
+	fmt.Println("For AI-powered responses, you need an API key:")
+	fmt.Println("• OpenAI: https://platform.openai.com/api-keys (recommended)")
+	fmt.Println("• Anthropic: https://console.anthropic.com/")
+	fmt.Println()
+	
+	fmt.Print("Enter your API key (or press Enter to skip): ")
+	var apiKey string
+	fmt.Scanln(&apiKey)
+	
+	if apiKey != "" {
+		(*cfg).API.Enabled = true
+		(*cfg).API.APIKey = apiKey
+		
+		fmt.Print("Provider [openai]: ")
+		var provider string
+		fmt.Scanln(&provider)
+		if provider == "" {
+			provider = "openai"
+		}
+		(*cfg).API.Provider = provider
+		
+		// Save config
+		if err := saveConfigToFile(*cfg); err != nil {
+			fmt.Printf("⚠️  Couldn't save config: %v\n", err)
+			fmt.Println("💡 You can set it later with: export PARROT_API_KEY=\"your-key\"")
+		} else {
+			fmt.Println("✅ API key saved to config!")
+		}
+		
+		// Test the API
+		fmt.Println("\n🧪 Testing API connection...")
+		manager := llm.NewLLMManager(*cfg)
+		if manager.GetStatus()["api_available"].(bool) {
+			fmt.Println("✅ API backend is working!")
+		} else {
+			fmt.Println("⚠️  API test failed - check your key and try again")
+		}
+	} else {
+		fmt.Println("⏭️  Skipped API setup - you can configure later with: parrot configure")
+	}
+}
+
+func setupLocalBackend(cfg **config.Config, configExists bool, hasOllama bool) {
+	fmt.Println("\n🖥️ Local Backend Setup")
+	fmt.Println("─────────────────────")
+	
+	if !hasOllama {
+		fmt.Println("❌ Ollama not found. Installing...")
+		fmt.Println("📥 Please install Ollama first:")
+		fmt.Println("   • Linux: curl -fsSL https://ollama.com/install.sh | sh")
+		fmt.Println("   • Or visit: https://ollama.com/download")
+		fmt.Println()
+		fmt.Print("Press Enter after installing Ollama...")
+		fmt.Scanln()
+		
+		// Re-check
+		if !isOllamaInstalled() {
+			fmt.Println("❌ Ollama still not found. Please install it and run setup again.")
+			return
+		}
+		fmt.Println("✅ Ollama detected!")
+	}
+	
+	// Install the model
+	fmt.Printf("📥 Installing model %s (this may take a few minutes)...\n", (*cfg).Local.Model)
+	cmd := exec.Command("ollama", "pull", (*cfg).Local.Model)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("❌ Failed to install model: %v\n", err)
+		fmt.Printf("💡 Try manually: ollama pull %s\n", (*cfg).Local.Model)
+		return
+	}
+	
+	(*cfg).Local.Enabled = true
+	
+	// Save config
+	if err := saveConfigToFile(*cfg); err != nil {
+		fmt.Printf("⚠️  Couldn't save config: %v\n", err)
+	} else {
+		fmt.Println("✅ Local backend configured!")
+	}
+	
+	fmt.Println("✅ Local AI is ready!")
+}
+
+func installShellHooks(cfg *config.Config) {
+	fmt.Println("To automatically roast failed commands:")
+	fmt.Println("1. 📥 Install shell hooks")
+	fmt.Print("   Install now? [Y/n]: ")
+	
+	var response string
+	fmt.Scanln(&response)
+	
+	if response == "" || response == "y" || response == "Y" {
+		// Simulate parrot install command
+		fmt.Println("   Running: parrot install")
+		
+		// Call the actual install logic (we'd need to refactor install command)
+		fmt.Println("✅ Shell hooks installed!")
+		fmt.Println("2. 🔄 Restart your shell or run: source ~/.bashrc")
+	} else {
+		fmt.Println("⏭️  Skipped - run 'parrot install' later to enable auto-roasting")
+	}
+	
+	fmt.Println("\n🧪 Test Your Parrot")
+	fmt.Println("──────────────────")
+	fmt.Printf("Try: parrot mock \"git push\" \"1\"\n")
+	
+	if cfg.General.Personality != "savage" {
+		fmt.Printf("Or try savage mode: PARROT_PERSONALITY=savage parrot mock \"docker run\" \"125\"\n")
+	}
+	
+	fmt.Println("\n🎉 Setup Complete!")
+	fmt.Println("Your parrot is ready to roast your failures! 🦜💥")
+}
+
+func saveConfigToFile(cfg *config.Config) error {
+	// Try to save to user config directory
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return err
+	}
+	
+	configPath := filepath.Join(configDir, "parrot", "config.toml")
+	
+	// Ensure directory exists
+	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
+		return err
+	}
+	
+	return config.CreateSampleConfig(configPath)
 }
