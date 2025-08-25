@@ -112,6 +112,12 @@ func (m *LLMManager) cleanResponse(response string) string {
 	// Clean up the response
 	response = strings.TrimSpace(response)
 	
+	// Remove tertiary output that starts with newline + "(Note:"
+	if idx := strings.Index(response, "\n(Note:"); idx != -1 {
+		response = response[:idx]
+		response = strings.TrimSpace(response)
+	}
+	
 	// Remove common prefixes from LLMs
 	prefixes := []string{
 		"Response:",

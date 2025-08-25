@@ -1,5 +1,7 @@
+%define debug_package %{nil}
+
 Name:           parrot
-Version:        1.0.0
+Version:        1.0.1
 Release:        1%{?dist}
 Summary:        Intelligent CLI command failure assistant with AI-powered responses
 
@@ -52,8 +54,8 @@ install -m 644 config/parrot.toml.example %{buildroot}%{_sysconfdir}/%{name}/par
 
 # Install documentation
 install -d %{buildroot}%{_docdir}/%{name}
-install -m 644 README.md %{buildroot}%{_docdir}/%{name}/
-install -m 644 INSTALLATION_FLOWS.md %{buildroot}%{_docdir}/%{name}/
+[ -f README.md ] && install -m 644 README.md %{buildroot}%{_docdir}/%{name}/ || true
+[ -f INSTALLATION_FLOWS.md ] && install -m 644 INSTALLATION_FLOWS.md %{buildroot}%{_docdir}/%{name}/ || true
 
 %post
 # Post-install setup guidance
@@ -83,14 +85,17 @@ if [ "$1" = "0" ]; then
 fi
 
 %files
-%doc README.md INSTALLATION_FLOWS.md
 %{_bindir}/parrot
 %{_datadir}/%{name}/parrot-hook.sh
 %{_sysconfdir}/%{name}/parrot.toml.example
 %{_docdir}/%{name}/
 
 %changelog
-* Sun Aug 25 2025 mfw <espadonne@outlook.com> - 1.0.0-1
+* Sun Aug 25 2024 mfw <espadonne@outlook.com> - 1.0.1-1
+- Add LLM output sanitization to remove tertiary "(Note:" content
+- Improve response quality by filtering unwanted AI justifications
+
+* Sun Aug 25 2024 mfw <espadonne@outlook.com> - 1.0.0-1
 - Initial RPM release
 - Multi-backend architecture with API, Local, and Fallback support
 - Interactive setup wizard with automated backend configuration

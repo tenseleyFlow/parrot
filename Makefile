@@ -3,7 +3,7 @@
 
 # Project configuration
 PROJECT_NAME = parrot
-VERSION = 1.0.0
+VERSION = 1.0.1
 TARGET = parrot
 
 # Go configuration
@@ -153,13 +153,12 @@ smoke-test: build
 repo-file:
 	@echo "Creating repository file..."
 	@mkdir -p $(DISTDIR)
-	@cat > $(DISTDIR)/$(PROJECT_NAME).repo << 'EOF'
-[$(PROJECT_NAME)]
-name=Parrot - Intelligent CLI Assistant
-baseurl=https://repos.musicsian.com/
-enabled=1
-gpgcheck=0
-	@echo "✓ Created $(DISTDIR)/$(PROJECT_NAME).repo"
+	@echo "[$(PROJECT_NAME)]" > $(DISTDIR)/$(PROJECT_NAME).repo
+	@echo "name=Parrot - Intelligent CLI Assistant" >> $(DISTDIR)/$(PROJECT_NAME).repo
+	@echo "baseurl=https://repos.musicsian.com/" >> $(DISTDIR)/$(PROJECT_NAME).repo
+	@echo "enabled=1" >> $(DISTDIR)/$(PROJECT_NAME).repo
+	@echo "gpgcheck=0" >> $(DISTDIR)/$(PROJECT_NAME).repo
+	@echo "Created $(DISTDIR)/$(PROJECT_NAME).repo"
 
 # Show build information
 .PHONY: info
