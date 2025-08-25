@@ -37,19 +37,27 @@ func installHooks(cmd *cobra.Command, args []string) {
 		rcFile = filepath.Join(homeDir, ".bashrc")
 	}
 
-	// Get current working directory to find the hook script
-	wd, err := os.Getwd()
-	if err != nil {
-		fmt.Printf("❌ Error getting working directory: %v\n", err)
-		return
+	// Try standard installation paths for the hook script
+	var hookPath string
+	possiblePaths := []string{
+		"/usr/share/parrot/parrot-hook.sh",     // RPM installation
+		"/usr/local/share/parrot/parrot-hook.sh", // Manual installation
+		"./parrot-hook.sh",                     // Development
 	}
 	
-	hookPath := filepath.Join(wd, "parrot-hook.sh")
+	for _, path := range possiblePaths {
+		if _, err := os.Stat(path); err == nil {
+			hookPath = path
+			break
+		}
+	}
 	
-	// Check if hook script exists
-	if _, err := os.Stat(hookPath); os.IsNotExist(err) {
-		fmt.Printf("❌ Hook script not found at: %s\n", hookPath)
-		fmt.Println("Make sure you're running this from the parrot directory.")
+	if hookPath == "" {
+		fmt.Println("❌ Hook script not found. Searched in:")
+		for _, path := range possiblePaths {
+			fmt.Printf("   - %s\n", path)
+		}
+		fmt.Println("Make sure parrot is properly installed.")
 		return
 	}
 

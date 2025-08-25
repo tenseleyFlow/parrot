@@ -1,10 +1,16 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"os"
 	"strings"
+	"time"
+
+	"parrot/internal/config"
+	"parrot/internal/llm"
+	"parrot/internal/prompts"
 
 	"github.com/spf13/cobra"
 )
@@ -44,8 +50,8 @@ func mockCommand(cmd *cobra.Command, args []string) {
 	// Basic command type detection
 	cmdType := detectCommandType(failedCmd)
 	
-	// Generate a mock response
-	response := generateMockResponse(cmdType, failedCmd, exitCode)
+	// Generate a smart mock response
+	response := generateSmartResponse(cmdType, failedCmd, exitCode)
 	
 	fmt.Printf("🦜 %s\n", response)
 }
@@ -74,40 +80,74 @@ func detectCommandType(command string) string {
 	}
 }
 
-func generateMockResponse(cmdType, command, exitCode string) string {
-	responses := map[string][]string{
+func generateSmartResponse(cmdType, command, exitCode string) string {
+	// Load configuration
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		// If config loading fails, use fallback
+		return getFallbackResponse(cmdType)
+	}
+	
+	// Initialize LLM manager
+	manager := llm.NewLLMManager(cfg)
+	
+	// Build context-aware prompt
+	prompt := prompts.BuildPrompt(cmdType, command, exitCode)
+	
+	// Generate response with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.API.Timeout)*time.Second)
+	defer cancel()
+	
+	response, backend := manager.Generate(ctx, prompt, cmdType)
+	
+	// Add backend indicator in debug mode
+	if cfg.General.Debug {
+		switch backend {
+		case llm.BackendAPI:
+			fmt.Printf("🌐 API backend used\n")
+		case llm.BackendLocal:
+			fmt.Printf("🖥️ Local backend used\n")
+		case llm.BackendFallback:
+			fmt.Printf("🔄 Fallback backend used\n")
+		}
+	}
+	
+	return response
+}
+
+func getFallbackResponse(cmdType string) string {
+	fallbacks := map[string][]string{
 		"git": {
-			"Oh look, another git genius who can't even commit properly!",
-			"Did you forget to pull again? Classic amateur move.",
 			"Git good? More like git rekt!",
+			"Did you forget to pull again? Classic amateur move.",
+			"Another git genius strikes again!",
 		},
 		"nodejs": {
-			"Node modules strike again! Maybe try turning it off and on again?",
 			"NPM install failed? Shocking! Nobody saw that coming.",
 			"Your package.json is crying. Fix it.",
+			"Node modules: where dependencies go to die.",
 		},
 		"docker": {
 			"Docker container more like docker DISASTER!",
 			"Even containers can't contain your incompetence.",
-			"Did you try 'have you tried containerizing it differently'?",
+			"Your Dockerfile needs therapy.",
 		},
 		"http": {
 			"404: Competence not found.",
-			"Looks like the internet doesn't want to talk to you.",
-			"Even HTTP requests are rejecting you now.",
+			"Even the internet doesn't want to talk to you.",
+			"Connection refused? So is your logic.",
 		},
 		"generic": {
 			"Wow, you managed to break something simple. Impressive!",
-			"Error code? More like user error!",
 			"Maybe try reading the manual... oh wait, who am I kidding?",
+			"Error code says it all: user error!",
 		},
 	}
 	
-	cmdResponses, exists := responses[cmdType]
+	responses, exists := fallbacks[cmdType]
 	if !exists {
-		cmdResponses = responses["generic"]
+		responses = fallbacks["generic"]
 	}
 	
-	response := cmdResponses[rand.Intn(len(cmdResponses))]
-	return response
+	return responses[rand.Intn(len(responses))]
 }
