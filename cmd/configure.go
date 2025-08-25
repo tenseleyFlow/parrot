@@ -84,6 +84,9 @@ func runConfigure(cmd *cobra.Command, args []string) {
 	fmt.Println("\n⚙️  General Preferences")
 	fmt.Println("────────────────────────")
 	personalities := []string{"mild", "sarcastic", "savage"}
+	if cfg.General.Personality == "" {
+		cfg.General.Personality = "sarcastic"
+	}
 	cfg.General.Personality = askChoice(reader, "Personality level", personalities, cfg.General.Personality)
 	cfg.General.Debug = askYesNo(reader, "Enable debug mode?", cfg.General.Debug)
 	cfg.General.FallbackMode = askYesNo(reader, "Use only fallback responses? (disable AI)", cfg.General.FallbackMode)

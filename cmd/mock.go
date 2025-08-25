@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"parrot/internal/colors"
 	"parrot/internal/config"
 	"parrot/internal/llm"
 	"parrot/internal/prompts"
@@ -51,9 +52,14 @@ func mockCommand(cmd *cobra.Command, args []string) {
 	cmdType := detectCommandType(failedCmd)
 	
 	// Generate a smart mock response
-	response := generateSmartResponse(cmdType, failedCmd, exitCode)
+	response, cfg := generateSmartResponse(cmdType, failedCmd, exitCode)
 	
-	fmt.Printf("🦜 %s\n", response)
+	// Format output with colors and personality
+	if cfg.General.Colors {
+		fmt.Println(colors.FormatParrotOutput(cfg.General.Personality, response, cfg.General.Enhanced))
+	} else {
+		fmt.Printf("🦜 %s\n", response)
+	}
 }
 
 func detectCommandType(command string) string {
@@ -80,19 +86,20 @@ func detectCommandType(command string) string {
 	}
 }
 
-func generateSmartResponse(cmdType, command, exitCode string) string {
+func generateSmartResponse(cmdType, command, exitCode string) (string, *config.Config) {
 	// Load configuration
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		// If config loading fails, use fallback
-		return getFallbackResponse(cmdType)
+		// If config loading fails, use fallback with default config
+		defaultCfg := config.DefaultConfig()
+		return getFallbackResponse(cmdType), defaultCfg
 	}
 	
 	// Initialize LLM manager
 	manager := llm.NewLLMManager(cfg)
 	
-	// Build context-aware prompt
-	prompt := prompts.BuildPrompt(cmdType, command, exitCode)
+	// Build context-aware prompt with personality
+	prompt := prompts.BuildPrompt(cmdType, command, exitCode, cfg.General.Personality)
 	
 	// Generate response with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.API.Timeout)*time.Second)
@@ -112,7 +119,7 @@ func generateSmartResponse(cmdType, command, exitCode string) string {
 		}
 	}
 	
-	return response
+	return response, cfg
 }
 
 func getFallbackResponse(cmdType string) string {
