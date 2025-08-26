@@ -1,7 +1,7 @@
 %define debug_package %{nil}
 
 Name:           parrot
-Version:        1.0.1
+Version:        1.0.4
 Release:        1%{?dist}
 Summary:        Intelligent CLI command failure assistant with AI-powered responses
 
@@ -91,6 +91,22 @@ fi
 %{_docdir}/%{name}/
 
 %changelog
+* Sun Aug 25 2024 mfw <espadonne@outlook.com> - 1.0.4-1
+- Enhanced sanitization to remove character count annotations like "(97 characters)"
+- Added removal of "Note:" commentary and asterisk annotations
+- Improved tokenization to eliminate all LLM metadata from responses
+
+* Sun Aug 25 2024 mfw <espadonne@outlook.com> - 1.0.3-1
+- Reduced terminal hangs with aggressive 2-second timeout strategy
+- Added immediate visual feedback and thinking indicators
+- Implemented async shell hook option (PARROT_ASYNC=true)
+- Reduced default timeouts: API 3s, Local 5s (previously 10s/30s)
+- Added progressive timeout with fallback to instant responses
+
+* Sun Aug 25 2024 mfw <espadonne@outlook.com> - 1.0.2-1
+- Enhanced output sanitization to remove all commentary after newlines
+- Improved response quality by tokenizing at newlines and discarding annotations
+
 * Sun Aug 25 2024 mfw <espadonne@outlook.com> - 1.0.1-1
 - Add LLM output sanitization to remove tertiary "(Note:" content
 - Improve response quality by filtering unwanted AI justifications

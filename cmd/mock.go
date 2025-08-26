@@ -51,8 +51,14 @@ func mockCommand(cmd *cobra.Command, args []string) {
 	// Basic command type detection
 	cmdType := detectCommandType(failedCmd)
 	
+	// Show immediate feedback to user
+	fmt.Print("🦜 ")
+	
 	// Generate a smart mock response
 	response, cfg := generateSmartResponse(cmdType, failedCmd, exitCode)
+	
+	// Clear the loading indicator and show response
+	fmt.Print("\r") // Clear current line
 	
 	// Format output with colors and personality
 	if cfg.General.Colors {
@@ -101,25 +107,73 @@ func generateSmartResponse(cmdType, command, exitCode string) (string, *config.C
 	// Build context-aware prompt with personality
 	prompt := prompts.BuildPrompt(cmdType, command, exitCode, cfg.General.Personality)
 	
-	// Generate response with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.API.Timeout)*time.Second)
+	// Use a shorter overall timeout for shell responsiveness (max 2 seconds)
+	maxTimeout := 2 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), maxTimeout)
 	defer cancel()
 	
-	response, backend := manager.Generate(ctx, prompt, cmdType)
+	// Create a channel for the response
+	responseChan := make(chan struct {
+		response string
+		backend  llm.Backend
+	}, 1)
 	
-	// Add backend indicator in debug mode
-	if cfg.General.Debug {
-		switch backend {
-		case llm.BackendAPI:
-			fmt.Printf("🌐 API backend used\n")
-		case llm.BackendLocal:
-			fmt.Printf("🖥️ Local backend used\n")
-		case llm.BackendFallback:
-			fmt.Printf("🔄 Fallback backend used\n")
+	// Start generation in a goroutine
+	go func() {
+		response, backend := manager.Generate(ctx, prompt, cmdType)
+		select {
+		case responseChan <- struct {
+			response string
+			backend  llm.Backend
+		}{response, backend}:
+		case <-ctx.Done():
 		}
-	}
+	}()
 	
-	return response, cfg
+	// Show progress indicator for anything longer than 500ms
+	progressTimer := time.NewTimer(500 * time.Millisecond)
+	defer progressTimer.Stop()
+	
+	select {
+	case result := <-responseChan:
+		progressTimer.Stop()
+		// Add backend indicator in debug mode
+		if cfg.General.Debug {
+			switch result.backend {
+			case llm.BackendAPI:
+				fmt.Printf("🌐 API backend used\n")
+			case llm.BackendLocal:
+				fmt.Printf("🖥️ Local backend used\n")
+			case llm.BackendFallback:
+				fmt.Printf("🔄 Fallback backend used\n")
+			}
+		}
+		return result.response, cfg
+	case <-progressTimer.C:
+		// Show thinking indicator after 500ms
+		fmt.Print("💭")
+		select {
+		case result := <-responseChan:
+			// Add backend indicator in debug mode
+			if cfg.General.Debug {
+				switch result.backend {
+				case llm.BackendAPI:
+					fmt.Printf("\n🌐 API backend used\n")
+				case llm.BackendLocal:
+					fmt.Printf("\n🖥️ Local backend used\n")
+				case llm.BackendFallback:
+					fmt.Printf("\n🔄 Fallback backend used\n")
+				}
+			}
+			return result.response, cfg
+		case <-ctx.Done():
+			// Fallback to instant response if timeout reached
+			return getFallbackResponse(cmdType), cfg
+		}
+	case <-ctx.Done():
+		// Fallback to instant response if timeout reached
+		return getFallbackResponse(cmdType), cfg
+	}
 }
 
 func getFallbackResponse(cmdType string) string {

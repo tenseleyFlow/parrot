@@ -3,7 +3,7 @@
 
 # Project configuration
 PROJECT_NAME = parrot
-VERSION = 1.0.1
+VERSION = 1.0.4
 TARGET = parrot
 
 # Go configuration
@@ -122,6 +122,14 @@ copy-rpms: rpm
 	@cp $(RPMDIR)/RPMS/x86_64/$(PROJECT_NAME)-*.rpm ../repos-musicsian-com/RPMS/
 	@cp $(RPMDIR)/SRPMS/$(PROJECT_NAME)-*.src.rpm ../repos-musicsian-com/RPMS/
 	@echo "✓ RPMs copied to ../repos-musicsian-com/RPMS/"
+
+# Sign and deploy to repository
+.PHONY: deploy
+deploy: copy-rpms
+	@echo "Deploying to live repository..."
+	@cd ../repos-musicsian-com && ./deploy.sh
+	@echo "🚀 Deployment complete!"
+	@echo "Users can now run: sudo dnf update $(PROJECT_NAME)"
 
 # Format Go code
 .PHONY: format

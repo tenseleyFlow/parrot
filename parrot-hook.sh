@@ -21,7 +21,12 @@ parrot_prompt_command() {
     
     # Only mock if command failed and we have a command
     if [ $exit_code -ne 0 ] && [ -n "$last_cmd" ] && parrot_check; then
-        "$PARROT_BIN" mock "$last_cmd" "$exit_code"
+        # Run parrot in background to avoid blocking shell if PARROT_ASYNC is set
+        if [ "${PARROT_ASYNC:-}" = "true" ]; then
+            "$PARROT_BIN" mock "$last_cmd" "$exit_code" &
+        else
+            "$PARROT_BIN" mock "$last_cmd" "$exit_code"
+        fi
     fi
 }
 
@@ -36,7 +41,12 @@ parrot_precmd() {
     
     # Only mock if command failed and we have a command
     if [ $exit_code -ne 0 ] && [ -n "$PARROT_LAST_CMD" ] && parrot_check; then
-        "$PARROT_BIN" mock "$PARROT_LAST_CMD" "$exit_code"
+        # Run parrot in background to avoid blocking shell if PARROT_ASYNC is set
+        if [ "${PARROT_ASYNC:-}" = "true" ]; then
+            "$PARROT_BIN" mock "$PARROT_LAST_CMD" "$exit_code" &
+        else
+            "$PARROT_BIN" mock "$PARROT_LAST_CMD" "$exit_code"
+        fi
     fi
 }
 
@@ -53,4 +63,9 @@ elif [ -n "$ZSH_VERSION" ]; then
     echo "🦜 Parrot is now watching your zsh commands..."
 else
     echo "⚠️  Parrot: Unsupported shell. Only bash and zsh are supported."
+fi
+
+# Show performance tip
+if [ "${PARROT_ASYNC:-}" != "true" ]; then
+    echo "💡 Tip: Set PARROT_ASYNC=true to prevent terminal hangs on slow networks"
 fi
