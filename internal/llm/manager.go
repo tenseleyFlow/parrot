@@ -112,10 +112,11 @@ func (m *LLMManager) cleanResponse(response string) string {
 	// Clean up the response
 	response = strings.TrimSpace(response)
 	
-	// Remove tertiary output that starts with newline + "(Note:"
-	if idx := strings.Index(response, "\n(Note:"); idx != -1 {
-		response = response[:idx]
-		response = strings.TrimSpace(response)
+	// Split at newlines and only keep the first meaningful part
+	lines := strings.Split(response, "\n")
+	if len(lines) > 1 {
+		// Keep only the first line, discard any commentary after newlines
+		response = strings.TrimSpace(lines[0])
 	}
 	
 	// Remove common prefixes from LLMs
@@ -128,6 +129,26 @@ func (m *LLMManager) cleanResponse(response string) string {
 	for _, prefix := range prefixes {
 		if strings.HasPrefix(response, prefix) {
 			response = strings.TrimSpace(response[len(prefix):])
+		}
+	}
+	
+	// Remove character count annotations like "(97 characters)"
+	if idx := strings.Index(response, " ("); idx != -1 {
+		remaining := response[idx:]
+		if strings.Contains(remaining, "character") && strings.Contains(remaining, ")") {
+			response = strings.TrimSpace(response[:idx])
+		}
+	}
+	
+	// Remove "Note:" annotations and similar commentary
+	if idx := strings.Index(response, "Note:"); idx != -1 {
+		response = strings.TrimSpace(response[:idx])
+	}
+	if idx := strings.Index(response, " *"); idx != -1 {
+		// Remove asterisk annotations like "* This is a note"
+		remaining := response[idx:]
+		if strings.HasPrefix(strings.TrimSpace(remaining), "* ") {
+			response = strings.TrimSpace(response[:idx])
 		}
 	}
 	

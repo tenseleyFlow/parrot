@@ -53,14 +53,14 @@ func DefaultConfig() *Config {
 			Endpoint: "https://api.openai.com/v1",
 			APIKey:   "", // Must be set by user
 			Model:    "gpt-3.5-turbo",
-			Timeout:  10,
+			Timeout:  3,  // Reduced from 10 to 3 seconds for responsiveness
 		},
 		Local: LocalConfig{
 			Enabled:  true,
 			Provider: "ollama", 
 			Endpoint: "http://localhost:11434",
 			Model:    "phi3.5:3.8b",
-			Timeout:  30,
+			Timeout:  5,  // Reduced from 30 to 5 seconds for responsiveness
 		},
 		General: GeneralConfig{
 			Personality:  "savage",
