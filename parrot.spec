@@ -1,7 +1,7 @@
 %define debug_package %{nil}
 
 Name:           parrot
-Version:        1.0.4
+Version:        1.3.0
 Release:        1%{?dist}
 Summary:        Intelligent CLI command failure assistant with AI-powered responses
 
@@ -58,20 +58,33 @@ install -d %{buildroot}%{_docdir}/%{name}
 [ -f INSTALLATION_FLOWS.md ] && install -m 644 INSTALLATION_FLOWS.md %{buildroot}%{_docdir}/%{name}/ || true
 
 %post
-# Post-install setup guidance
+# Post-install automatic setup
 echo "🦜 Parrot has been installed successfully!"
 echo ""
-echo "Next steps to complete setup:"
-echo "1. Run 'parrot setup' to configure your preferred backend"
-echo "2. Follow the interactive prompts to enable shell integration"
-echo ""
-echo "Backend options:"
-echo "  • API Backend: Use OpenAI-compatible services (requires API key)"
-echo "  • Local Backend: Use Ollama for privacy-focused local AI"
-echo "  • Fallback: Built-in responses (no setup required)"
-echo ""
-echo "For detailed setup instructions, see: /usr/share/doc/%{name}/INSTALLATION_FLOWS.md"
-echo "Example configuration: /etc/%{name}/parrot.toml.example"
+
+# Check if Ollama is available for automatic setup
+if command -v ollama >/dev/null 2>&1; then
+    echo "🤖 Ollama detected - setting up local AI backend..."
+    
+    # Pull the model in background if not already present
+    if ! ollama list | grep -q "llama3.2:3b"; then
+        echo "📥 Downloading AI model (this may take a few minutes)..."
+        echo "   You can continue using your terminal - parrot will work when ready"
+        (ollama pull llama3.2:3b >/dev/null 2>&1 && echo "✅ AI model ready!" || echo "❌ Model download failed") &
+    else
+        echo "✅ AI model already available"
+    fi
+    
+    echo "🔧 To enable shell integration, run: parrot install"
+    echo "💡 This adds smart command failure detection to your shell"
+else
+    echo "🔄 Using built-in responses (no setup required)"
+    echo ""
+    echo "For AI-powered responses, install Ollama:"
+    echo "  https://ollama.com/download"
+    echo "Then run: parrot setup"
+fi
+
 echo ""
 echo "Run 'parrot --help' to get started!"
 
@@ -91,6 +104,20 @@ fi
 %{_docdir}/%{name}/
 
 %changelog
+* Wed Sep 03 2025 mfw <espadonne@outlook.com> - 1.3.0-1
+- Implemented transparent AI model management for seamless user experience
+- Switched default model to llama3.2:3b (25% faster loading than phi3.5:3.8b)
+- Added automatic OLLAMA_KEEP_ALIVE=1h configuration via parrot install
+- Enhanced post-install scripts to automatically download AI models in background
+- Optimized timeouts for graceful degradation (45s default, 30s minimum)
+- Improved installation UX: users can install and forget, no manual model management needed
+
+* Tue Aug 26 2025 mfw <espadonne@outlook.com> - 1.2.0-1
+- Added automated release workflow with scripts/release.sh
+- Created comprehensive RELEASE.md documentation
+- Enhanced Makefile with release management targets
+- Improved version management across repositories
+
 * Sun Aug 25 2024 mfw <espadonne@outlook.com> - 1.0.4-1
 - Enhanced sanitization to remove character count annotations like "(97 characters)"
 - Added removal of "Note:" commentary and asterisk annotations

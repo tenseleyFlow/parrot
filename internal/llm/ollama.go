@@ -32,14 +32,14 @@ func NewOllamaClient(baseURL, model string) *OllamaClient {
 		baseURL = "http://localhost:11434"
 	}
 	if model == "" {
-		model = "phi3.5:3.8b"
+		model = "llama3.2:3b"
 	}
 	
 	return &OllamaClient{
 		BaseURL: baseURL,
 		Model:   model,
 		client: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: 60 * time.Second, // Reasonable timeout with OLLAMA_KEEP_ALIVE
 		},
 	}
 }
@@ -106,4 +106,41 @@ func (c *OllamaClient) IsAvailable() bool {
 	defer resp.Body.Close()
 	
 	return resp.StatusCode == http.StatusOK
+}
+
+// WarmupModel preloads the model to avoid cold start delays
+func (c *OllamaClient) WarmupModel() error {
+	u, err := url.JoinPath(c.BaseURL, "/api/generate")
+	if err != nil {
+		return fmt.Errorf("invalid base URL: %w", err)
+	}
+
+	req := GenerateRequest{
+		Model:  c.Model,
+		Prompt: "test", // Minimal prompt to load model
+		Stream: false,
+	}
+
+	reqBody, err := json.Marshal(req)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	// Use a longer timeout for initial model loading
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", u, bytes.NewReader(reqBody))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.client.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("failed to warmup model: %w", err)
+	}
+	defer resp.Body.Close()
+
+	return nil
 }
