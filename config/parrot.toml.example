@@ -42,16 +42,20 @@ timeout = 30
 base_url = "http://localhost:11434"
 
 # Model to use (will be pulled automatically if not present)
-model = "phi3.5:3.8b"
+# llama3.2:3b - Fast loading, good quality for CLI responses
+model = "llama3.2:3b"
 
 # Generation options
 max_tokens = 150
 temperature = 0.7
-timeout = 45
+timeout = 45      # Balanced timeout for graceful degradation
 
 # Model management
 auto_pull = true  # Automatically pull model if not available
 pull_timeout = 300  # Timeout for model pulling in seconds
+
+# Performance tip: parrot install sets OLLAMA_KEEP_ALIVE=1h
+# This keeps models loaded in memory for faster responses
 
 # ==================== PERSONALITY SETTINGS ====================
 

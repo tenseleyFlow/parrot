@@ -17,9 +17,10 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "parrot",
-	Short: "A sassy CLI that mocks your failed commands",
-	Long:  "Parrot listens for failed commands and responds with intelligent insults and mockery.",
+	Use:     "parrot",
+	Version: "1.3.0",
+	Short:   "A sassy CLI that mocks your failed commands",
+	Long:    "Parrot listens for failed commands and responds with intelligent insults and mockery.",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("🦜 Parrot is watching... waiting for you to mess up!")
 	},

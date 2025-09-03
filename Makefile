@@ -3,7 +3,7 @@
 
 # Project configuration
 PROJECT_NAME = parrot
-VERSION = 1.0.4
+VERSION = 1.3.0
 TARGET = parrot
 
 # Go configuration
@@ -190,6 +190,18 @@ deps:
 	@command -v golangci-lint >/dev/null 2>&1 && echo "  golangci-lint" || echo "  golangci-lint - for linting"
 	@command -v goimports >/dev/null 2>&1 && echo "  goimports" || echo "  goimports - for import management"
 
+# Release workflow
+.PHONY: release
+release:
+	@echo "Starting release workflow..."
+	@echo "Usage: make release VERSION=x.y.z"
+	@if [ -z "$(VERSION)" ]; then \
+		echo "Error: VERSION not specified"; \
+		echo "Example: make release VERSION=1.0.5"; \
+		exit 1; \
+	fi
+	@./scripts/release.sh $(VERSION)
+
 # Help target
 .PHONY: help
 help:
@@ -213,6 +225,10 @@ help:
 	@echo "  rpm          Build binary RPM"
 	@echo "  copy-rpms    Copy RPMs to repository structure"
 	@echo "  repo-file    Create .repo file for YUM"
+	@echo "  deploy       Build and deploy to live repository"
+	@echo ""
+	@echo "Release Management:"
+	@echo "  release      Complete release workflow (requires VERSION=x.y.z)"
 	@echo ""
 	@echo "Utilities:"
 	@echo "  info         Show build information"
@@ -220,8 +236,8 @@ help:
 	@echo "  help         Show this help"
 	@echo ""
 	@echo "Example workflow:"
-	@echo "  make dev     # Development cycle"
-	@echo "  make rpm     # Build RPM packages"
-	@echo "  make copy-rpms # Deploy to repository"
+	@echo "  make dev                    # Development cycle"
+	@echo "  make release VERSION=1.0.5 # Complete release"
+	@echo "  make deploy                 # Deploy to repository"
 
 .PHONY: all build clean test install uninstall tarball rpm-prep srpm rpm copy-rpms format lint dev smoke-test repo-file info deps help

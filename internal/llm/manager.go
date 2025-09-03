@@ -44,6 +44,17 @@ func NewLLMManager(cfg *config.Config) *LLMManager {
 			cfg.Local.Endpoint,
 			cfg.Local.Model,
 		)
+		
+		// Warm up the model in the background for better performance
+		if manager.ollamaClient.IsAvailable() {
+			go func() {
+				if err := manager.ollamaClient.WarmupModel(); err != nil && cfg.General.Debug {
+					fmt.Printf("🔥 Model warmup failed: %v\n", err)
+				} else if cfg.General.Debug {
+					fmt.Printf("🔥 Model warmed up successfully\n")
+				}
+			}()
+		}
 	}
 	
 	return manager
@@ -83,8 +94,12 @@ func (m *LLMManager) Generate(ctx context.Context, prompt string, commandType st
 			fmt.Printf("🔍 Trying local backend...\n")
 		}
 		
-		// Create timeout context for local calls
-		localCtx, cancel := context.WithTimeout(ctx, time.Duration(m.config.Local.Timeout)*time.Second)
+		// Create timeout context for local calls with reasonable timeout
+		timeoutDuration := time.Duration(m.config.Local.Timeout) * time.Second
+		if timeoutDuration < 30*time.Second {
+			timeoutDuration = 30 * time.Second // Minimum 30s for graceful degradation
+		}
+		localCtx, cancel := context.WithTimeout(ctx, timeoutDuration)
 		defer cancel()
 		
 		response, err := m.ollamaClient.Generate(localCtx, prompt)

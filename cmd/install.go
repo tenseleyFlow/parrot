@@ -61,11 +61,12 @@ func installHooks(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	// Add source line to RC file
+	// Add source line and environment setup to RC file
 	sourceLine := fmt.Sprintf("source \"%s\"", hookPath)
 	
 	fmt.Printf("🦜 Installing parrot hooks to: %s\n", rcFile)
-	fmt.Printf("📝 Adding line: %s\n", sourceLine)
+	fmt.Printf("📝 Adding hook: %s\n", sourceLine)
+	fmt.Printf("🔧 Configuring Ollama for better performance\n")
 	
 	// Check if already installed
 	if isAlreadyInstalled(rcFile, sourceLine) {
@@ -81,7 +82,13 @@ func installHooks(cmd *cobra.Command, args []string) {
 	}
 	defer file.Close()
 	
-	_, err = file.WriteString(fmt.Sprintf("\n# Parrot CLI hooks\n%s\n", sourceLine))
+	installContent := fmt.Sprintf(`
+# Parrot CLI hooks and configuration
+export OLLAMA_KEEP_ALIVE="1h"  # Keep AI models loaded for better performance
+%s
+`, sourceLine)
+	
+	_, err = file.WriteString(installContent)
 	if err != nil {
 		fmt.Printf("❌ Error writing to %s: %v\n", rcFile, err)
 		return
@@ -97,5 +104,7 @@ func isAlreadyInstalled(rcFile, sourceLine string) bool {
 		return false
 	}
 	
-	return strings.Contains(string(content), sourceLine)
+	// Check for both the source line and OLLAMA_KEEP_ALIVE setting
+	contentStr := string(content)
+	return strings.Contains(contentStr, sourceLine) && strings.Contains(contentStr, "OLLAMA_KEEP_ALIVE")
 }
