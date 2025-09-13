@@ -29,7 +29,7 @@ type GenerateResponse struct {
 
 func NewOllamaClient(baseURL, model string) *OllamaClient {
 	if baseURL == "" {
-		baseURL = "http://localhost:11434"
+		baseURL = "http://127.0.0.1:11434" // Use IPv4 explicitly to avoid IPv6 issues
 	}
 	if model == "" {
 		model = "llama3.2:3b"
@@ -39,7 +39,7 @@ func NewOllamaClient(baseURL, model string) *OllamaClient {
 		BaseURL: baseURL,
 		Model:   model,
 		client: &http.Client{
-			Timeout: 60 * time.Second, // Reasonable timeout with OLLAMA_KEEP_ALIVE
+			Timeout: 10 * time.Second, // More reasonable timeout for CLI
 		},
 	}
 }
@@ -69,12 +69,13 @@ func (c *OllamaClient) Generate(ctx context.Context, prompt string) (string, err
 
 	resp, err := c.client.Do(httpReq)
 	if err != nil {
-		return "", fmt.Errorf("failed to send request: %w", err)
+		return "", fmt.Errorf("failed to send request to %s: %w", c.BaseURL, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("ollama API returned status: %d", resp.StatusCode)
+		body, _ := json.Marshal(resp.Body)
+		return "", fmt.Errorf("ollama API returned status %d: %s", resp.StatusCode, string(body))
 	}
 
 	var genResp GenerateResponse

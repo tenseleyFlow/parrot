@@ -94,19 +94,19 @@ func (m *LLMManager) Generate(ctx context.Context, prompt string, commandType st
 			fmt.Printf("🔍 Trying local backend...\n")
 		}
 		
-		// Create timeout context for local calls with reasonable timeout
+		// Create timeout context for local calls
 		timeoutDuration := time.Duration(m.config.Local.Timeout) * time.Second
-		if timeoutDuration < 30*time.Second {
-			timeoutDuration = 30 * time.Second // Minimum 30s for graceful degradation
-		}
 		localCtx, cancel := context.WithTimeout(ctx, timeoutDuration)
 		defer cancel()
 		
 		response, err := m.ollamaClient.Generate(localCtx, prompt)
+		if m.config.General.Debug {
+			fmt.Printf("🐛 Raw Ollama response: '%s', error: %v\n", response, err)
+		}
 		if err == nil && response != "" {
 			response = m.cleanResponse(response)
 			if m.config.General.Debug {
-				fmt.Printf("✅ Local backend succeeded\n")
+				fmt.Printf("✅ Local backend succeeded with: '%s'\n", response)
 			}
 			return response, BackendLocal
 		}

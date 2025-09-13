@@ -2,7 +2,7 @@
 
 Name:           parrot
 Version:        1.3.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Intelligent CLI command failure assistant with AI-powered responses
 
 License:        MIT
@@ -74,19 +74,22 @@ if command -v ollama >/dev/null 2>&1; then
     else
         echo "✅ AI model already available"
     fi
-    
-    echo "🔧 To enable shell integration, run: parrot install"
-    echo "💡 This adds smart command failure detection to your shell"
+    echo ""
 else
     echo "🔄 Using built-in responses (no setup required)"
     echo ""
     echo "For AI-powered responses, install Ollama:"
     echo "  https://ollama.com/download"
-    echo "Then run: parrot setup"
+    echo ""
 fi
 
+echo "🚀 NEXT STEP: Run this command to enable shell integration:"
+echo "    parrot install"
 echo ""
-echo "Run 'parrot --help' to get started!"
+echo "💡 This adds smart command failure detection to your shell"
+echo "   After running it, failed commands will trigger helpful responses!"
+echo ""
+echo "📖 For more options, run: parrot --help"
 
 %preun
 # Clean up shell integrations on uninstall
@@ -104,7 +107,11 @@ fi
 %{_docdir}/%{name}/
 
 %changelog
-* Wed Sep 03 2025 mfw <espadonne@outlook.com> - 1.3.0-1
+* Fri Sep 13 2024 mfw <espadonne@outlook.com> - 1.3.0-2
+- Enhanced post-install messaging to clearly guide users to run 'parrot install'
+- Improved shell integration setup instructions and user experience
+
+* Wed Sep 03 2024 mfw <espadonne@outlook.com> - 1.3.0-1
 - Implemented transparent AI model management for seamless user experience
 - Switched default model to llama3.2:3b (25% faster loading than phi3.5:3.8b)
 - Added automatic OLLAMA_KEEP_ALIVE=1h configuration via parrot install

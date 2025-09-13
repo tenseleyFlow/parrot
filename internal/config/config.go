@@ -58,9 +58,9 @@ func DefaultConfig() *Config {
 		Local: LocalConfig{
 			Enabled:  true,
 			Provider: "ollama", 
-			Endpoint: "http://localhost:11434",
-			Model:    "phi3.5:3.8b",
-			Timeout:  5,  // Reduced from 30 to 5 seconds for responsiveness
+			Endpoint: "http://127.0.0.1:11434",
+			Model:    "llama3.2:3b",
+			Timeout:  8,  // Adequate time for local LLM processing
 		},
 		General: GeneralConfig{
 			Personality:  "savage",
