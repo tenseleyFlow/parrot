@@ -137,29 +137,66 @@ func ParseCommandContext(command string, commandType string, exitCode string) Sm
 
 // GenerateSmartFallback generates a context-aware insult
 func GenerateSmartFallback(ctx SmartFallbackContext) string {
-	// Tier 3 Intelligence - Highest Priority (LLM-like awareness)
+	// Load user history for Tier 4 intelligence
+	history := LoadUserHistory()
 
-	// 1. Repeated failure escalation
+	// Record this failure
+	if history != nil {
+		history.RecordFailure(ctx)
+	}
+
+	// TIER 4 INTELLIGENCE - Highest Priority (ML-like Learning & Dynamic Generation)
+
+	// 1. Failure streak escalation (gets more brutal over time)
+	if history != nil && history.CurrentStreak >= 2 {
+		if insult := GenerateStreakEscalation(history.CurrentStreak, ctx); insult != "" {
+			return insult
+		}
+	}
+
+	// 2. Historical pattern-based insults (learns from past failures)
+	if history != nil && history.TotalFailures > 0 {
+		if insult := GenerateHistoricalInsult(history, ctx); insult != "" {
+			return insult
+		}
+	}
+
+	// 3. Dynamic template-based generation (infinite combinations)
+	if insult := GenerateDynamicInsult(ctx, history); insult != "" {
+		return insult
+	}
+
+	// 4. Savage mode (brutal, devastating insults)
+	// Activate savage mode for: high streaks, high total failures, or specific contexts
+	if history != nil && (history.CurrentStreak >= 5 || history.TotalFailures >= 50) {
+		if insult := GetAnySavageInsult(ctx.FullCommand); insult != "" {
+			return insult
+		}
+	}
+
+	// Tier 3 Intelligence - LLM-like awareness
+
+	// 5. Repeated failure escalation
 	if insult := getRepeatedFailureInsult(ctx); insult != "" {
 		return insult
 	}
 
-	// 2. CI/CD environment detection
+	// 6. CI/CD environment detection
 	if insult := getCIInsult(ctx); insult != "" {
 		return insult
 	}
 
-	// 3. Error pattern recognition
+	// 7. Error pattern recognition
 	if insult := getErrorPatternInsult(ctx); insult != "" {
 		return insult
 	}
 
-	// 4. Docker/Build system awareness
+	// 8. Docker/Build system awareness
 	if insult := getBuildSystemInsult(ctx); insult != "" {
 		return insult
 	}
 
-	// 5. Dependency complexity awareness
+	// 9. Dependency complexity awareness
 	if insult := getDependencyInsult(ctx); insult != "" {
 		return insult
 	}
