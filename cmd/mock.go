@@ -87,8 +87,12 @@ func detectCommandType(command string) string {
 		return "nodejs"
 
 	// Containers
-	case "docker", "docker-compose", "podman", "kubectl", "k9s":
+	case "docker", "docker-compose", "podman":
 		return "docker"
+
+	// Kubernetes
+	case "kubectl", "k9s", "helm", "kustomize", "k3s", "minikube":
+		return "kubernetes"
 
 	// HTTP/Network
 	case "curl", "wget", "http", "https":
@@ -96,7 +100,11 @@ func detectCommandType(command string) string {
 
 	// SSH/Remote
 	case "ssh", "scp", "sftp", "rsync":
-		return "ssh"
+		return "ssh_expanded"
+
+	// Shell scripting
+	case "bash", "zsh", "fish", "sh", "ksh", "csh":
+		return "shell_scripting"
 
 	// Navigation
 	case "cd", "pushd", "popd":
@@ -104,31 +112,31 @@ func detectCommandType(command string) string {
 
 	// Python
 	case "python", "python3", "pip", "pip3", "poetry", "pipenv", "conda":
-		return "python"
+		return "python_expanded"
 
 	// Rust
 	case "cargo", "rustc", "rustup":
-		return "rust"
+		return "rust_expanded"
 
 	// Go
 	case "go":
-		return "go"
+		return "golang_expanded"
 
 	// Java
 	case "java", "javac", "mvn", "gradle":
-		return "java"
+		return "java_expanded"
 
 	// C/C++
 	case "gcc", "g++", "clang", "clang++", "cc", "c++":
-		return "cpp"
+		return "c_expanded"
 
 	// Ruby
 	case "ruby", "gem", "bundle", "rake", "rails":
-		return "ruby"
+		return "ruby_expanded"
 
 	// PHP
 	case "php", "composer":
-		return "php"
+		return "php_expanded"
 
 	// Build systems (check for C files to categorize properly)
 	case "make", "cmake", "ninja", "ant", "bazel":
