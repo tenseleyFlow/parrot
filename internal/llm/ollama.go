@@ -39,7 +39,7 @@ func NewOllamaClient(baseURL, model string) *OllamaClient {
 		BaseURL: baseURL,
 		Model:   model,
 		client: &http.Client{
-			Timeout: 10 * time.Second, // More reasonable timeout for CLI
+			Timeout: 60 * time.Second, // Maximum timeout; actual timeout controlled by context
 		},
 	}
 }
@@ -74,8 +74,11 @@ func (c *OllamaClient) Generate(ctx context.Context, prompt string) (string, err
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := json.Marshal(resp.Body)
-		return "", fmt.Errorf("ollama API returned status %d: %s", resp.StatusCode, string(body))
+		// Read the actual error response body
+		bodyBytes := make([]byte, 512) // Read first 512 bytes for error message
+		n, _ := resp.Body.Read(bodyBytes)
+		bodyStr := string(bodyBytes[:n])
+		return "", fmt.Errorf("ollama API returned status %d: %s", resp.StatusCode, bodyStr)
 	}
 
 	var genResp GenerateResponse

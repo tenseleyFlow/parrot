@@ -50,7 +50,8 @@ func NewAPIClient(endpoint, apiKey, model string, timeout int) *APIClient {
 		APIKey:   apiKey,
 		Model:    model,
 		client: &http.Client{
-			Timeout: time.Duration(timeout) * time.Second,
+			// Use a generous timeout; actual timeout is controlled by context
+			Timeout: 60 * time.Second,
 		},
 	}
 }
