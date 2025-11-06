@@ -1,8 +1,8 @@
 %define debug_package %{nil}
 
 Name:           parrot
-Version:        1.3.0
-Release:        2%{?dist}
+Version:        1.4.0
+Release:        1%{?dist}
 Summary:        Intelligent CLI command failure assistant with AI-powered responses
 
 License:        MIT
@@ -107,6 +107,15 @@ fi
 %{_docdir}/%{name}/
 
 %changelog
+* Wed Nov 06 2024 mfw <espadonne@outlook.com> - 1.4.0-1
+- Tier 4 Intelligence: ML-like learning and dynamic generation capabilities
+- Tier 3 Intelligence: LLM-like context awareness for smarter responses
+- Tier 2 Intelligence: Project and git context awareness
+- Tier 1 Intelligence: Advanced context-aware fallback system
+- Expanded fallback database with 600+ contextual insults
+- Fixed double output and backend fallback issues
+- Enhanced local backend model handling
+
 * Fri Sep 13 2024 mfw <espadonne@outlook.com> - 1.3.0-2
 - Enhanced post-install messaging to clearly guide users to run 'parrot install'
 - Improved shell integration setup instructions and user experience
