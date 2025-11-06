@@ -28,6 +28,11 @@ type SmartFallbackContext struct {
 	Shell            string
 	HasPipes         bool
 	HasChaining      bool
+
+	// Tier 2 Intelligence
+	GitBranch      string
+	ProjectType    string // "node", "rust", "go", "python", "java", etc.
+	ProjectFiles   []string // List of project files found
 }
 
 // ParseCommandContext extracts context from a command for intelligent fallback
@@ -92,14 +97,34 @@ func ParseCommandContext(command string, commandType string, exitCode string) Sm
 		}
 	}
 
+	// Tier 2 Intelligence Gathering
+
+	// Detect git branch if in a git repo
+	ctx.GitBranch = detectGitBranch()
+
+	// Detect project type by checking for common project files
+	ctx.ProjectType, ctx.ProjectFiles = detectProjectType()
+
 	return ctx
 }
 
 // GenerateSmartFallback generates a context-aware insult
 func GenerateSmartFallback(ctx SmartFallbackContext) string {
+	// Tier 2 Intelligence - Highest Priority
+
+	// 1. Git branch awareness
+	if insult := getGitBranchInsult(ctx); insult != "" {
+		return insult
+	}
+
+	// 2. Project type detection
+	if insult := getProjectTypeInsult(ctx); insult != "" {
+		return insult
+	}
+
 	// Tier 1 Intelligence - Priority Order
 
-	// 1. Environment-specific insults
+	// 3. Environment-specific insults
 	if insult := getEnvironmentInsult(ctx); insult != "" {
 		return insult
 	}
@@ -840,6 +865,231 @@ func getCommandComplexityInsult(ctx SmartFallbackContext) string {
 			"Chaining commands: Chaining failures sequentially.",
 			"&& operator: AND you're terrible AND incompetent.",
 		}, ctx.FullCommand)
+	}
+
+	return ""
+}
+
+// Tier 2 Intelligence Detection Functions
+
+// detectGitBranch detects the current git branch
+func detectGitBranch() string {
+	// Check if we're in a git repo first
+	if _, err := os.Stat(".git"); os.IsNotExist(err) {
+		return ""
+	}
+
+	// Try to get current branch
+	if data, err := os.ReadFile(".git/HEAD"); err == nil {
+		head := string(data)
+		// Format: "ref: refs/heads/branch-name"
+		if strings.HasPrefix(head, "ref: refs/heads/") {
+			branch := strings.TrimPrefix(head, "ref: refs/heads/")
+			return strings.TrimSpace(branch)
+		}
+	}
+
+	return ""
+}
+
+// detectProjectType detects project type by checking for common project files
+func detectProjectType() (string, []string) {
+	projectFiles := []string{
+		"package.json",      // Node.js
+		"Cargo.toml",        // Rust
+		"go.mod",            // Go
+		"requirements.txt",  // Python
+		"Pipfile",           // Python (pipenv)
+		"pyproject.toml",    // Python (poetry)
+		"pom.xml",           // Java (Maven)
+		"build.gradle",      // Java (Gradle)
+		"Gemfile",           // Ruby
+		"composer.json",     // PHP
+		"Makefile",          // C/C++
+		"CMakeLists.txt",    // C/C++ (CMake)
+		"package.swift",     // Swift
+		"mix.exs",           // Elixir
+		"Dockerfile",        // Docker
+		"docker-compose.yml", // Docker Compose
+	}
+
+	var foundFiles []string
+	for _, file := range projectFiles {
+		if _, err := os.Stat(file); err == nil {
+			foundFiles = append(foundFiles, file)
+		}
+	}
+
+	// Determine project type from found files
+	if len(foundFiles) == 0 {
+		return "", nil
+	}
+
+	// Priority order for type detection
+	typeMap := map[string]string{
+		"package.json":      "node",
+		"Cargo.toml":        "rust",
+		"go.mod":            "go",
+		"requirements.txt":  "python",
+		"Pipfile":           "python",
+		"pyproject.toml":    "python",
+		"pom.xml":           "java",
+		"build.gradle":      "java",
+		"Gemfile":           "ruby",
+		"composer.json":     "php",
+		"package.swift":     "swift",
+		"mix.exs":           "elixir",
+	}
+
+	for _, file := range foundFiles {
+		if projectType, exists := typeMap[file]; exists {
+			return projectType, foundFiles
+		}
+	}
+
+	return "generic", foundFiles
+}
+
+// getGitBranchInsult returns insults based on git branch
+func getGitBranchInsult(ctx SmartFallbackContext) string {
+	if ctx.GitBranch == "" {
+		return ""
+	}
+
+	branch := strings.ToLower(ctx.GitBranch)
+
+	branchInsults := map[string][]string{
+		"main": {
+			"Breaking main? Breaking everyone's day.",
+			"Main branch failure: Main character of disasters.",
+			"Failed on main: Mainly incompetent.",
+			"Main branch disaster: You're the main problem.",
+		},
+		"master": {
+			"Master branch failure: Master of disasters.",
+			"Breaking master: Mastering incompetence.",
+			"Master branch error: You've mastered failure.",
+		},
+		"develop": {
+			"Develop branch failed: Develop your skills first.",
+			"Development branch: Under-developed skills.",
+			"Develop? More like devolve.",
+		},
+		"dev": {
+			"Dev branch failed: Dev-astating incompetence.",
+			"Dev environment: Environment of failure.",
+		},
+		"staging": {
+			"Staging failure: Staging your resignation.",
+			"Staging branch: Staging area for disaster.",
+		},
+		"production": {
+			"Production branch failed: Producing unemployment.",
+			"Prod branch error: Professionally regressive.",
+		},
+	}
+
+	// Check exact matches first
+	if insults, exists := branchInsults[branch]; exists {
+		return selectInsult(insults, ctx.FullCommand)
+	}
+
+	// Check for patterns
+	if strings.Contains(branch, "feature") || strings.HasPrefix(branch, "feat/") {
+		return selectInsult([]string{
+			"Feature branch: Featured failure.",
+			"New feature: Newly incompetent.",
+			"Feature branch failed: Feature: Broken. Developer: Broken.",
+		}, ctx.FullCommand)
+	}
+
+	if strings.Contains(branch, "hotfix") || strings.HasPrefix(branch, "fix/") {
+		return selectInsult([]string{
+			"Hotfix branch: You ARE the bug.",
+			"Hotfix failed: Can't fix what's fundamentally broken: You.",
+			"Hotfix? More like hot mess.",
+		}, ctx.FullCommand)
+	}
+
+	if strings.Contains(branch, "bugfix") || strings.Contains(branch, "bug/") {
+		return selectInsult([]string{
+			"Bugfix branch: The bug is you.",
+			"Fixing bugs? You ARE the bug.",
+		}, ctx.FullCommand)
+	}
+
+	if strings.Contains(branch, "release") {
+		return selectInsult([]string{
+			"Release branch failed: Release your grip on keyboard.",
+			"Release branch: Releasing disaster into the world.",
+		}, ctx.FullCommand)
+	}
+
+	if strings.Contains(branch, "test") {
+		return selectInsult([]string{
+			"Test branch failed: You're the test, reality failed you.",
+			"Testing branch: Test results: FAIL.",
+		}, ctx.FullCommand)
+	}
+
+	return ""
+}
+
+// getProjectTypeInsult returns insults based on detected project type
+func getProjectTypeInsult(ctx SmartFallbackContext) string {
+	if ctx.ProjectType == "" {
+		return ""
+	}
+
+	projectInsults := map[string][]string{
+		"node": {
+			"Node project detected. Dependencies: Many. Skills: None.",
+			"package.json found: Package of failures.",
+			"Node.js project: Node your way out of this one.",
+			"npm detected: Node Package Misery.",
+		},
+		"rust": {
+			"Cargo.toml found: Can't cargo your incompetence.",
+			"Rust project detected: Rust in peace, code.",
+			"Cargo workspace: Working on failure.",
+		},
+		"go": {
+			"go.mod found: Go away.",
+			"Go project detected: Should've gone into another career.",
+			"Go modules: Modular incompetence.",
+		},
+		"python": {
+			"requirements.txt found: Requirement for skill: UNMET.",
+			"Python project detected: Snake bit you back.",
+			"Python dependencies: Depending on incompetence.",
+			"Virtual environment detected: Can't isolate stupidity.",
+		},
+		"java": {
+			"pom.xml found: Maven project: Mav-un successful.",
+			"Java project detected: Needs more than coffee.",
+			"Gradle detected: Grade: F. Project: Failed.",
+		},
+		"ruby": {
+			"Gemfile found: Cubic zirconia skills.",
+			"Ruby project: Ruby red with embarrassment.",
+			"Bundler detected: Bundle of incompetence.",
+		},
+		"php": {
+			"composer.json found: Can't compose competence.",
+			"PHP project: Probably Horrible Programming detected.",
+		},
+		"swift": {
+			"Swift project: Swift path to unemployment.",
+			"Package.swift found: Swiftly failing.",
+		},
+		"elixir": {
+			"Elixir project: No elixir can cure this.",
+			"mix.exs found: Mixed results: All bad.",
+		},
+	}
+
+	if insults, exists := projectInsults[ctx.ProjectType]; exists {
+		return selectInsult(insults, ctx.FullCommand)
 	}
 
 	return ""
