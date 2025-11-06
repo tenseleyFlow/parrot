@@ -110,8 +110,31 @@ func detectCommandType(command string) string {
 	case "cargo", "rustc", "rustup":
 		return "rust"
 
-	// Build systems
-	case "make", "cmake", "ninja", "gradle", "maven", "mvn", "ant", "bazel":
+	// Go
+	case "go":
+		return "go"
+
+	// Java
+	case "java", "javac", "mvn", "gradle":
+		return "java"
+
+	// C/C++
+	case "gcc", "g++", "clang", "clang++", "cc", "c++":
+		return "cpp"
+
+	// Ruby
+	case "ruby", "gem", "bundle", "rake", "rails":
+		return "ruby"
+
+	// PHP
+	case "php", "composer":
+		return "php"
+
+	// Build systems (check for C files to categorize properly)
+	case "make", "cmake", "ninja", "ant", "bazel":
+		if strings.Contains(command, ".c ") || strings.HasSuffix(command, ".c") {
+			return "c"
+		}
 		return "build"
 
 	// Databases

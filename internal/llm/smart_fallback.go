@@ -1,8 +1,12 @@
 package llm
 
 import (
+	"os"
+	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // SmartFallbackContext contains all context needed for intelligent fallback generation
@@ -13,6 +17,17 @@ type SmartFallbackContext struct {
 	Arguments    []string
 	ExitCode     int
 	FullCommand  string
+
+	// Tier 1 Intelligence
+	Environment      map[string]string
+	WorkingDir       string
+	TimeOfDay        int  // Hour 0-23
+	FileExtensions   []string
+	CommandLength    int
+	NumericArgs      []int
+	Shell            string
+	HasPipes         bool
+	HasChaining      bool
 }
 
 // ParseCommandContext extracts context from a command for intelligent fallback
@@ -20,6 +35,7 @@ func ParseCommandContext(command string, commandType string, exitCode string) Sm
 	ctx := SmartFallbackContext{
 		FullCommand: command,
 		CommandType: commandType,
+		Environment: make(map[string]string),
 	}
 
 	// Parse exit code
@@ -39,27 +55,103 @@ func ParseCommandContext(command string, commandType string, exitCode string) Sm
 		ctx.Arguments = parts[2:]
 	}
 
+	// Tier 1 Intelligence Gathering
+	ctx.CommandLength = len(command)
+	ctx.TimeOfDay = time.Now().Hour()
+	ctx.HasPipes = strings.Contains(command, "|")
+	ctx.HasChaining = strings.Contains(command, "&&") || strings.Contains(command, "||")
+
+	// Get working directory
+	if wd, err := os.Getwd(); err == nil {
+		ctx.WorkingDir = wd
+	}
+
+	// Get shell type
+	ctx.Shell = filepath.Base(os.Getenv("SHELL"))
+
+	// Collect interesting environment variables
+	envVars := []string{"CI", "DEBUG", "NODE_ENV", "PROD", "PRODUCTION", "STAGING", "DEVELOPMENT",
+		"GITHUB_ACTIONS", "GITLAB_CI", "JENKINS_HOME", "CIRCLECI", "TRAVIS"}
+	for _, envVar := range envVars {
+		if val := os.Getenv(envVar); val != "" {
+			ctx.Environment[envVar] = val
+		}
+	}
+
+	// Extract file extensions from command
+	extRegex := regexp.MustCompile(`\.\w{1,6}\b`)
+	exts := extRegex.FindAllString(command, -1)
+	ctx.FileExtensions = exts
+
+	// Extract numeric arguments (ports, chmod values, PIDs, etc.)
+	numRegex := regexp.MustCompile(`\b\d+\b`)
+	nums := numRegex.FindAllString(command, -1)
+	for _, num := range nums {
+		if n, err := strconv.Atoi(num); err == nil {
+			ctx.NumericArgs = append(ctx.NumericArgs, n)
+		}
+	}
+
 	return ctx
 }
 
 // GenerateSmartFallback generates a context-aware insult
 func GenerateSmartFallback(ctx SmartFallbackContext) string {
-	// Try exit code specific insults first
+	// Tier 1 Intelligence - Priority Order
+
+	// 1. Environment-specific insults
+	if insult := getEnvironmentInsult(ctx); insult != "" {
+		return insult
+	}
+
+	// 2. Time-sensitive insults
+	if insult := getTimeOfDayInsult(ctx); insult != "" {
+		return insult
+	}
+
+	// 3. Working directory insults
+	if insult := getWorkingDirInsult(ctx); insult != "" {
+		return insult
+	}
+
+	// 4. File extension insults
+	if insult := getFileExtensionInsult(ctx); insult != "" {
+		return insult
+	}
+
+	// 5. Numeric argument insults
+	if insult := getNumericArgumentInsult(ctx); insult != "" {
+		return insult
+	}
+
+	// 6. Shell-specific insults
+	if insult := getShellInsult(ctx); insult != "" {
+		return insult
+	}
+
+	// 7. Command complexity insults
+	if insult := getCommandComplexityInsult(ctx); insult != "" {
+		return insult
+	}
+
+	// Existing intelligence layers
+
+	// 8. Exit code specific insults
 	if insult := getExitCodeInsult(ctx); insult != "" {
 		return insult
 	}
 
-	// Try command-specific patterns
+	// 9. Command-specific patterns
 	if insult := getCommandPatternInsult(ctx); insult != "" {
 		return insult
 	}
 
-	// Try argument-aware insults
+	// 10. Argument-aware insults
 	if insult := getArgumentAwareInsult(ctx); insult != "" {
 		return insult
 	}
 
-	// Fall back to expanded database
+	// 11. Fall back to expanded database
 	return GetExpandedFallback(ctx.CommandType, ctx.FullCommand)
 }
 
@@ -402,6 +494,351 @@ func getArgumentAwareInsult(ctx SmartFallbackContext) string {
 			"Checking version: Your version is deprecated.",
 			"--version: v0.0.0-incompetent",
 			"Software version: Current. Developer version: Obsolete.",
+		}, ctx.FullCommand)
+	}
+
+	return ""
+}
+
+// Tier 1 Intelligence Detection Functions
+
+// getEnvironmentInsult returns insults based on environment variables
+func getEnvironmentInsult(ctx SmartFallbackContext) string {
+	envInsults := map[string][]string{
+		"CI": {
+			"Breaking CI? Breaking everyone's day.",
+			"CI failure: Continuous Incompetence detected.",
+			"Failed in CI: Failing Continuously and Immediately.",
+			"CI pipeline broken: Your career pipeline next.",
+		},
+		"GITHUB_ACTIONS": {
+			"GitHub Actions failed: Your actions speak louder than words.",
+			"Actions workflow broken: Action item: Find new career.",
+			"GitHub runner quit: Running from your code.",
+		},
+		"GITLAB_CI": {
+			"GitLab CI failed: Lab results show terminal incompetence.",
+			"Pipeline failed: Pipe down, you're done.",
+		},
+		"JENKINS_HOME": {
+			"Jenkins build failed: Job security failed too.",
+			"Jenkins says no: Automated rejection system working.",
+		},
+		"DEBUG": {
+			"Debug mode active: Can't debug your brain.",
+			"Debugging? You ARE the bug.",
+		},
+		"PRODUCTION": {
+			"Production error: Producing only failures.",
+			"PROD failure: Professional Regression Of Development.",
+			"Testing in production? Testing everyone's patience.",
+		},
+		"NODE_ENV": {
+			"Node environment error: Environment of incompetence.",
+		},
+	}
+
+	for env, val := range ctx.Environment {
+		if insults, exists := envInsults[env]; exists && val != "" {
+			return selectInsult(insults, ctx.FullCommand)
+		}
+	}
+
+	return ""
+}
+
+// getTimeOfDayInsult returns insults based on time of day
+func getTimeOfDayInsult(ctx SmartFallbackContext) string {
+	hour := ctx.TimeOfDay
+
+	switch {
+	case hour >= 0 && hour < 6:
+		return selectInsult([]string{
+			"3 AM debugging? Tomorrow won't fix today's code.",
+			"Coding at 3 AM? Your code is as tired as you.",
+			"Late night failure: Sleep won't fix this.",
+			"Midnight coding: Both your code and judgment are impaired.",
+		}, ctx.FullCommand)
+	case hour >= 6 && hour < 9:
+		return selectInsult([]string{
+			"Morning failure sets the tone for the day.",
+			"Failed before breakfast: Hungry for failure.",
+			"Early bird gets the worm: Early coder gets the bugs.",
+		}, ctx.FullCommand)
+	case hour >= 17 && hour < 20:
+		return selectInsult([]string{
+			"Evening failure: Overtime making more bugs.",
+			"5 PM deploy failed: Weekend ruined.",
+			"After hours coding: After competence hours too.",
+		}, ctx.FullCommand)
+	case hour >= 20 && hour < 24:
+		return selectInsult([]string{
+			"Late night commit: Commit to quitting instead.",
+			"Coding past 8 PM? Desperation detected.",
+			"Night owl? More like night fail.",
+		}, ctx.FullCommand)
+	}
+
+	return ""
+}
+
+// getWorkingDirInsult returns insults based on working directory
+func getWorkingDirInsult(ctx SmartFallbackContext) string {
+	wd := strings.ToLower(ctx.WorkingDir)
+
+	dirPatterns := map[string][]string{
+		"/tmp": {
+			"Coding in /tmp? That's where your code belongs: temporary.",
+			"Temp directory for temp solution for temp developer.",
+			"/tmp: Temporary directory, permanent failure.",
+		},
+		"downloads": {
+			"Coding in Downloads? Your career is downloading too.",
+			"Downloads folder: Downloaded failure.",
+		},
+		"/var/log": {
+			"Working in logs? You belong in error logs.",
+			"/var/log: Logging your mistakes for posterity.",
+		},
+		"/root": {
+			"Running as root? Root of all problems.",
+			"Root directory? Rooted in incompetence.",
+		},
+		"desktop": {
+			"Desktop coding? Desktop disaster.",
+			"Desktop folder: Where careers go to die.",
+		},
+		"/opt": {
+			"Optional directory for optional competence.",
+			"/opt: Opted out of skill.",
+		},
+	}
+
+	for pattern, insults := range dirPatterns {
+		if strings.Contains(wd, pattern) {
+			return selectInsult(insults, ctx.FullCommand)
+		}
+	}
+
+	return ""
+}
+
+// getFileExtensionInsult returns insults based on file extensions in command
+func getFileExtensionInsult(ctx SmartFallbackContext) string {
+	if len(ctx.FileExtensions) == 0 {
+		return ""
+	}
+
+	ext := strings.ToLower(ctx.FileExtensions[0])
+
+	extInsults := map[string][]string{
+		".rs": {
+			"Rust file failed: Rust in peace, code.",
+			".rs: Rust? Your skills are corroded.",
+			"Rust compile failed: Oxidized incompetence.",
+		},
+		".go": {
+			"Go file failed: Stop. Don't go. Just don't.",
+			".go error: Should've Go-ne into another career.",
+			"Go build failed: Go away.",
+		},
+		".java": {
+			"Java failed: Needs more than coffee beans.",
+			".java compile error: Java the Hutt-level bloat.",
+			"Java exception: You're the exception to competence.",
+		},
+		".cpp": {
+			"C++ failed: C++ you later, career.",
+			".cpp segfault: C++ more like C-- --.",
+			"C++ error: Can't ++ your skill level.",
+		},
+		".c": {
+			"C compilation failed: C you don't understand C.",
+			".c file error: C-riously incompetent.",
+		},
+		".py": {
+			"Python failed: Snake bit back.",
+			".py error: Python crying from your code.",
+			"Python IndentationError: Career misaligned too.",
+		},
+		".js": {
+			"JavaScript failed: Just awful Script.",
+			".js error: Java-Script? Neither Java nor scripted competence.",
+		},
+		".ts": {
+			"TypeScript failed: Type: Disaster.",
+			".ts error: TypeScript can't type your chaos.",
+		},
+		".sh": {
+			"Shell script failed: Script kiddie confirmed.",
+			".sh error: Shell-shocked by incompetence.",
+		},
+		".rb": {
+			"Ruby failed: More like Rub-y wounds in codebase.",
+			".rb error: Ruby gem? Cubic zirconia skill.",
+		},
+		".php": {
+			"PHP failed: Probably Horrible Programming.",
+			".php error: PHP stands for Please Help Professional.",
+		},
+	}
+
+	if insults, exists := extInsults[ext]; exists {
+		return selectInsult(insults, ctx.FullCommand)
+	}
+
+	return ""
+}
+
+// getNumericArgumentInsult returns insults based on numeric arguments
+func getNumericArgumentInsult(ctx SmartFallbackContext) string {
+	if len(ctx.NumericArgs) == 0 {
+		return ""
+	}
+
+	num := ctx.NumericArgs[0]
+
+	// Port numbers
+	if num >= 1 && num <= 65535 {
+		portInsults := map[int][]string{
+			22: {
+				"Port 22: 22 ways to fail at SSH.",
+				"SSH on port 22: Access denied to competence.",
+			},
+			80: {
+				"Port 80: HTTP status 500 Internal User Error.",
+				"Port 80: Gateway to failure.",
+			},
+			443: {
+				"Port 443: HTTPS - Hyper Text Tragic Protocol Stupidity.",
+				"Port 443: Secure connection to incompetence.",
+			},
+			3000: {
+				"Port 3000: Three thousand problems detected.",
+				"Port 3000: Development port for underdeveloped skills.",
+			},
+			8080: {
+				"Port 8080: Eight-zero-eight-zero errors found.",
+				"Port 8080: Alternative HTTP, alternative competence (zero).",
+			},
+			5432: {
+				"Port 5432: PostgreSQL rejecting your queries and you.",
+				"Port 5432: Postgres? More like Post-regrets.",
+			},
+			3306: {
+				"Port 3306: MySQL - My Structured Query: Why are you coding?",
+				"Port 3306: MySQL rejecting your SQL and existence.",
+			},
+			27017: {
+				"Port 27017: MongoDB - More like MongoDON'T.",
+				"Port 27017: NoSQL? No skill either.",
+			},
+		}
+
+		if insults, exists := portInsults[num]; exists {
+			return selectInsult(insults, ctx.FullCommand)
+		}
+	}
+
+	// Chmod values
+	if num == 777 {
+		return selectInsult([]string{
+			"chmod 777: Maximum permissions, minimum security, zero brains.",
+			"777: Jackpot of incompetence.",
+			"chmod 777: Triple seven, triple failure.",
+		}, ctx.FullCommand)
+	}
+	if num == 666 {
+		return "chmod 666: Devil's permission for devilish code."
+	}
+	if num == 000 || num == 0 {
+		return "chmod 000: Like your access to competence."
+	}
+
+	// Kill signals
+	if num == 9 {
+		return selectInsult([]string{
+			"kill -9: Killing process. Can't kill your incompetence.",
+			"SIGKILL sent: Signal your career is over.",
+		}, ctx.FullCommand)
+	}
+
+	return ""
+}
+
+// getShellInsult returns insults based on shell type
+func getShellInsult(ctx SmartFallbackContext) string {
+	shell := strings.ToLower(ctx.Shell)
+
+	shellInsults := map[string][]string{
+		"bash": {
+			"Bash error: Bash your head against keyboard, same result.",
+			"Bourne Again Shell: Borne to fail again.",
+		},
+		"zsh": {
+			"Z shell: Z for Zero competence level.",
+			"Zsh failure: Last shell of the alphabet, last in skill.",
+		},
+		"fish": {
+			"Fish shell: You're swimming in failure.",
+			"Fish error: Fishing for competence, caught nothing.",
+		},
+		"sh": {
+			"Bourne shell: Born to fail.",
+			"sh: Should've stayed in the shell.",
+		},
+		"ksh": {
+			"Korn shell: Your code is corny.",
+		},
+		"csh": {
+			"C shell: See? Shell of incompetence.",
+		},
+	}
+
+	if insults, exists := shellInsults[shell]; exists {
+		return selectInsult(insults, ctx.FullCommand)
+	}
+
+	return ""
+}
+
+// getCommandComplexityInsult returns insults based on command complexity
+func getCommandComplexityInsult(ctx SmartFallbackContext) string {
+	length := ctx.CommandLength
+
+	if length < 10 {
+		return selectInsult([]string{
+			"Short command, short career.",
+			"Simple command failed: Simply incompetent.",
+		}, ctx.FullCommand)
+	}
+
+	if length > 100 {
+		return selectInsult([]string{
+			"Command longer than your employment prospects.",
+			"100+ characters: Complexity hiding incompetence.",
+			"Long command: Compensating for short skills.",
+		}, ctx.FullCommand)
+	}
+
+	if ctx.HasPipes && ctx.HasChaining {
+		return selectInsult([]string{
+			"Pipes AND chaining? Piping chained disasters together.",
+			"Complex piped chain: Complexly incompetent.",
+		}, ctx.FullCommand)
+	}
+
+	if ctx.HasPipes {
+		return selectInsult([]string{
+			"Pipe fail: Piping garbage to garbage.",
+			"Pipeline broken: Like your career pipeline.",
+		}, ctx.FullCommand)
+	}
+
+	if ctx.HasChaining {
+		return selectInsult([]string{
+			"Chaining commands: Chaining failures sequentially.",
+			"&& operator: AND you're terrible AND incompetent.",
 		}, ctx.FullCommand)
 	}
 
