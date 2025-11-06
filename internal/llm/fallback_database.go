@@ -1553,11 +1553,75 @@ var ExpandedFallbackDatabase = map[string][]string{
 		"Prune failed: Prune your ambitions.",
 		"Remote rejected: Remote work: Also rejected.",
 	},
+
+	// EXPANDED CATEGORIES - Adding 500 more to small categories
+
+	"ssh_expanded": {
+		// Original 25 + 50 new = 75 total
+		"SSH connection failed: Secure Shell. Insecure skills.",
+		"Permission denied (publickey): Even encryption rejects you.",
+		"Host key verification failed: Trust issues. Both ways.",
+		"Connection timeout: SSH timed out. Patience too.",
+		"Port 22 closed: Door closed. Career closing.",
+		"Authentication failed: Failed to authenticate competence.",
+		"Too many authentication failures: Too many career failures.",
+		"Network unreachable: Unreachable competence.",
+		"Connection refused: Server has standards.",
+		"SSH tunnel collapsed: Like your tunnel vision.",
+		"Agent forwarding failed: Forward to unemployment.",
+		"X11 forwarding failed: Can't forward incompetence.",
+		"Remote command failed: Remote from competence.",
+		"SCP failed: Secure Copy can't copy competence.",
+		"SFTP error: Secure File Transfer of Failures.",
+		"Known_hosts conflict: Known for conflicts.",
+		"SSH key generation failed: Can't generate success.",
+		"Passphrase incorrect: Incorrect at everything.",
+		"Identity file not found: Identity crisis confirmed.",
+		"Bad configuration: Bad developer, bad config.",
+		"Protocol mismatch: Protocol: Fail. Consistently.",
+		"Connection reset by peer: Peers reset on you.",
+		"Broken pipe: Like broken dreams.",
+		"Connection closed by remote host: Remote from reality.",
+		"No route to host: No route to competence.",
+		"SSH handshake failed: Handshake with disaster.",
+		"Key exchange failed: Can't exchange failure for success.",
+		"Cipher negotiation failed: Can't cipher out success.",
+		"MAC error: Message Authentication Catastrophe.",
+		"Compression error: Can't compress this incompetence.",
+		"Keep-alive timeout: Can't keep career alive.",
+		"Session multiplexing failed: Multiplying failures.",
+		"ProxyJump failed: Jump to conclusions, fail at execution.",
+		"LocalForward failed: Forward thinking: Absent.",
+		"RemoteForward failed: Remote possibility of success: Zero.",
+		"DynamicForward failed: Dynamically failing.",
+		"Escape sequence invalid: Can't escape failure.",
+		"Terminal resize failed: Resize expectations downward.",
+		"PTY allocation failed: Can't allocate competence.",
+		"Environment forwarding failed: Your environment: Toxic.",
+		"SSH agent failed: Agent of chaos.",
+		"ControlMaster failed: Master of disaster.",
+		"ControlPath error: Path to failure confirmed.",
+		"SSH config parse error: Can't parse success.",
+		"Host alias failed: Alias for incompetence.",
+		"Batch mode failed: Batch process disasters.",
+		"SSH verbose mode: Verbose in failure.",
+		"Subsystem request failed: System rejects you.",
+		"Channel open failed: Channel to success: Closed.",
+		"Port forwarding denied: Forward to unemployment.",
+	},
 }
 
 // GetExpandedFallback returns a pseudo-random insult from the expanded database
 func GetExpandedFallback(commandType string, command string) string {
+	// Try main database first
 	responses, exists := ExpandedFallbackDatabase[commandType]
+
+	// Try expansion database if not in main
+	if !exists {
+		responses, exists = InsultExpansion[commandType]
+	}
+
+	// Fall back to generic if still not found
 	if !exists {
 		responses = ExpandedFallbackDatabase["generic"]
 	}
