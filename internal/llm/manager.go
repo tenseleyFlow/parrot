@@ -191,54 +191,9 @@ func (m *LLMManager) cleanResponse(response string) string {
 }
 
 func (m *LLMManager) generateFallback(commandType string) string {
-	fallbacks := map[string][]string{
-		"git": {
-			"Git good? More like git rekt!",
-			"Did you forget to pull again? Classic amateur move.",
-			"Another git genius strikes again!",
-			"Your commits are as broken as your workflow.",
-		},
-		"nodejs": {
-			"NPM install failed? Shocking! Nobody saw that coming.",
-			"Your package.json is crying. Fix it.",
-			"Node modules: where dependencies go to die.",
-			"Even npm doesn't want to deal with your code.",
-		},
-		"docker": {
-			"Docker container more like docker DISASTER!",
-			"Even containers can't contain your incompetence.",
-			"Your Dockerfile needs therapy.",
-			"Container exit code: user error detected.",
-		},
-		"http": {
-			"404: Competence not found.",
-			"Even the internet doesn't want to talk to you.",
-			"Connection refused? So is your logic.",
-			"HTTP status: 500 Internal User Error.",
-		},
-		"generic": {
-			"Wow, you managed to break something simple. Impressive!",
-			"Maybe try reading the manual... oh wait, who am I kidding?",
-			"Error code says it all: user error!",
-			"Have you tried turning your brain on and off again?",
-		},
-	}
-	
-	responses, exists := fallbacks[commandType]
-	if !exists {
-		responses = fallbacks["generic"]
-	}
-	
-	// Simple pseudo-random selection based on command type
-	hash := 0
-	for _, char := range commandType {
-		hash = hash*31 + int(char)
-	}
-	if hash < 0 {
-		hash = -hash
-	}
-	
-	return responses[hash%len(responses)]
+	// Use the expanded fallback database with hundreds of insults
+	// This provides much more variety and entertainment when backends are unavailable
+	return GetExpandedFallback(commandType, "")
 }
 
 func (m *LLMManager) GetStatus() map[string]interface{} {

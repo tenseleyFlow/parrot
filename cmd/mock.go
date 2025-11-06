@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"os"
 	"strings"
 	"time"
@@ -72,22 +71,57 @@ func mockCommand(cmd *cobra.Command, args []string) {
 func detectCommandType(command string) string {
 	parts := strings.Fields(command)
 	if len(parts) == 0 {
-		return "unknown"
+		return "generic"
 	}
-	
-	switch parts[0] {
+
+	cmd := parts[0]
+
+	// Check for common command patterns
+	switch cmd {
+	// Version control
 	case "git":
 		return "git"
-	case "npm", "yarn", "pnpm":
+
+	// Node.js ecosystem
+	case "npm", "yarn", "pnpm", "node", "npx", "bun", "deno":
 		return "nodejs"
-	case "docker", "docker-compose":
+
+	// Containers
+	case "docker", "docker-compose", "podman", "kubectl", "k9s":
 		return "docker"
-	case "curl", "wget":
+
+	// HTTP/Network
+	case "curl", "wget", "http", "https":
 		return "http"
-	case "ssh":
+
+	// SSH/Remote
+	case "ssh", "scp", "sftp", "rsync":
 		return "ssh"
-	case "cd":
+
+	// Navigation
+	case "cd", "pushd", "popd":
 		return "navigation"
+
+	// Python
+	case "python", "python3", "pip", "pip3", "poetry", "pipenv", "conda":
+		return "python"
+
+	// Rust
+	case "cargo", "rustc", "rustup":
+		return "rust"
+
+	// Build systems
+	case "make", "cmake", "ninja", "gradle", "maven", "mvn", "ant", "bazel":
+		return "build"
+
+	// Databases
+	case "mysql", "psql", "postgres", "mongo", "mongosh", "redis-cli", "sqlite3":
+		return "database"
+
+	// Permission-related commands
+	case "chmod", "chown", "chgrp", "sudo":
+		return "permissions"
+
 	default:
 		return "generic"
 	}
@@ -178,38 +212,6 @@ func generateSmartResponse(cmdType, command, exitCode string) (string, *config.C
 }
 
 func getFallbackResponse(cmdType string) string {
-	fallbacks := map[string][]string{
-		"git": {
-			"Git good? More like git rekt!",
-			"Did you forget to pull again? Classic amateur move.",
-			"Another git genius strikes again!",
-		},
-		"nodejs": {
-			"NPM install failed? Shocking! Nobody saw that coming.",
-			"Your package.json is crying. Fix it.",
-			"Node modules: where dependencies go to die.",
-		},
-		"docker": {
-			"Docker container more like docker DISASTER!",
-			"Even containers can't contain your incompetence.",
-			"Your Dockerfile needs therapy.",
-		},
-		"http": {
-			"404: Competence not found.",
-			"Even the internet doesn't want to talk to you.",
-			"Connection refused? So is your logic.",
-		},
-		"generic": {
-			"Wow, you managed to break something simple. Impressive!",
-			"Maybe try reading the manual... oh wait, who am I kidding?",
-			"Error code says it all: user error!",
-		},
-	}
-	
-	responses, exists := fallbacks[cmdType]
-	if !exists {
-		responses = fallbacks["generic"]
-	}
-	
-	return responses[rand.Intn(len(responses))]
+	// Use the expanded fallback database with hundreds of brutal insults
+	return llm.GetExpandedFallback(cmdType, "")
 }
