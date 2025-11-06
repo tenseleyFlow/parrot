@@ -63,7 +63,7 @@ func NewLLMManager(cfg *config.Config) *LLMManager {
 func (m *LLMManager) Generate(ctx context.Context, prompt string, commandType string) (string, Backend) {
 	// If fallback mode is enabled, skip LLM backends
 	if m.config.General.FallbackMode {
-		return m.generateFallback(commandType), BackendFallback
+		return m.generateFallback(commandType, "", ""), BackendFallback
 	}
 	
 	// Try backends in priority order: API -> Local -> Fallback
@@ -125,7 +125,76 @@ func (m *LLMManager) Generate(ctx context.Context, prompt string, commandType st
 	if m.config.General.Debug {
 		fmt.Printf("🔄 Using fallback backend\n")
 	}
-	return m.generateFallback(commandType), BackendFallback
+	return m.generateFallback(commandType, "", ""), BackendFallback
+}
+
+// GenerateWithContext generates a response with full context for intelligent fallbacks
+func (m *LLMManager) GenerateWithContext(ctx context.Context, prompt string, commandType string, fullCommand string, exitCode string) (string, Backend) {
+	// If fallback mode is enabled, skip LLM backends
+	if m.config.General.FallbackMode {
+		return m.generateFallback(commandType, fullCommand, exitCode), BackendFallback
+	}
+
+	// Try backends in priority order: API -> Local -> Fallback
+
+	// 1. Try API first (if available)
+	if m.apiClient != nil && m.config.API.Enabled {
+		if m.config.General.Debug {
+			fmt.Printf("🔍 Trying API backend...\n")
+		}
+
+		// Create timeout context for API calls
+		timeoutDuration := time.Duration(m.config.API.Timeout) * time.Second
+		apiCtx, cancel := context.WithTimeout(ctx, timeoutDuration)
+		defer cancel()
+
+		response, err := m.apiClient.Generate(apiCtx, prompt)
+		if err == nil && response != "" {
+			response = m.cleanResponse(response)
+			if m.config.General.Debug {
+				fmt.Printf("✅ API backend succeeded\n")
+			}
+			return response, BackendAPI
+		}
+
+		if m.config.General.Debug {
+			fmt.Printf("❌ API backend failed: %v\n", err)
+		}
+	}
+
+	// 2. Try local Ollama (if available)
+	if m.ollamaClient != nil && m.config.Local.Enabled {
+		if m.config.General.Debug {
+			fmt.Printf("🔍 Trying local backend...\n")
+		}
+
+		// Create timeout context for local calls
+		timeoutDuration := time.Duration(m.config.Local.Timeout) * time.Second
+		localCtx, cancel := context.WithTimeout(ctx, timeoutDuration)
+		defer cancel()
+
+		response, err := m.ollamaClient.Generate(localCtx, prompt)
+		if m.config.General.Debug {
+			fmt.Printf("🐛 Raw Ollama response: '%s', error: %v\n", response, err)
+		}
+		if err == nil && response != "" {
+			response = m.cleanResponse(response)
+			if m.config.General.Debug {
+				fmt.Printf("✅ Local backend succeeded with: '%s'\n", response)
+			}
+			return response, BackendLocal
+		}
+
+		if m.config.General.Debug {
+			fmt.Printf("❌ Local backend failed: %v\n", err)
+		}
+	}
+
+	// 3. Fallback to smart context-aware responses
+	if m.config.General.Debug {
+		fmt.Printf("🔄 Using smart fallback backend\n")
+	}
+	return m.generateFallback(commandType, fullCommand, exitCode), BackendFallback
 }
 
 func (m *LLMManager) cleanResponse(response string) string {
@@ -190,10 +259,18 @@ func (m *LLMManager) cleanResponse(response string) string {
 	return strings.TrimSpace(response)
 }
 
-func (m *LLMManager) generateFallback(commandType string) string {
-	// Use the expanded fallback database with hundreds of insults
-	// This provides much more variety and entertainment when backends are unavailable
-	return GetExpandedFallback(commandType, "")
+func (m *LLMManager) generateFallback(commandType string, fullCommand string, exitCode string) string {
+	// Use smart context-aware fallback when we have context
+	if fullCommand != "" || exitCode != "" {
+		ctx := ParseCommandContext(fullCommand, commandType, exitCode)
+		insult := GenerateSmartFallback(ctx)
+		if insult != "" {
+			return insult
+		}
+	}
+
+	// Fall back to expanded database if no smart match
+	return GetExpandedFallback(commandType, fullCommand)
 }
 
 func (m *LLMManager) GetStatus() map[string]interface{} {

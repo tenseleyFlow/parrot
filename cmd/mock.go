@@ -155,7 +155,8 @@ func generateSmartResponse(cmdType, command, exitCode string) (string, *config.C
 	
 	// Start generation in a goroutine
 	go func() {
-		response, backend := manager.Generate(ctx, prompt, cmdType)
+		// Use GenerateWithContext for intelligent fallbacks
+		response, backend := manager.GenerateWithContext(ctx, prompt, cmdType, command, exitCode)
 		select {
 		case responseChan <- struct {
 			response string
@@ -213,5 +214,6 @@ func generateSmartResponse(cmdType, command, exitCode string) (string, *config.C
 
 func getFallbackResponse(cmdType string) string {
 	// Use the expanded fallback database with hundreds of brutal insults
+	// This is only called on config load failure, so we don't have full context
 	return llm.GetExpandedFallback(cmdType, "")
 }

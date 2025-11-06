@@ -1,0 +1,426 @@
+package llm
+
+import (
+	"strconv"
+	"strings"
+)
+
+// SmartFallbackContext contains all context needed for intelligent fallback generation
+type SmartFallbackContext struct {
+	Command      string
+	CommandType  string
+	Subcommand   string
+	Arguments    []string
+	ExitCode     int
+	FullCommand  string
+}
+
+// ParseCommandContext extracts context from a command for intelligent fallback
+func ParseCommandContext(command string, commandType string, exitCode string) SmartFallbackContext {
+	ctx := SmartFallbackContext{
+		FullCommand: command,
+		CommandType: commandType,
+	}
+
+	// Parse exit code
+	if ec, err := strconv.Atoi(exitCode); err == nil {
+		ctx.ExitCode = ec
+	}
+
+	// Parse command into parts
+	parts := strings.Fields(command)
+	if len(parts) == 0 {
+		return ctx
+	}
+
+	ctx.Command = parts[0]
+	if len(parts) > 1 {
+		ctx.Subcommand = parts[1]
+		ctx.Arguments = parts[2:]
+	}
+
+	return ctx
+}
+
+// GenerateSmartFallback generates a context-aware insult
+func GenerateSmartFallback(ctx SmartFallbackContext) string {
+	// Try exit code specific insults first
+	if insult := getExitCodeInsult(ctx); insult != "" {
+		return insult
+	}
+
+	// Try command-specific patterns
+	if insult := getCommandPatternInsult(ctx); insult != "" {
+		return insult
+	}
+
+	// Try argument-aware insults
+	if insult := getArgumentAwareInsult(ctx); insult != "" {
+		return insult
+	}
+
+	// Fall back to expanded database
+	return GetExpandedFallback(ctx.CommandType, ctx.FullCommand)
+}
+
+// getExitCodeInsult returns insults specific to common exit codes
+func getExitCodeInsult(ctx SmartFallbackContext) string {
+	exitCodeInsults := map[int][]string{
+		1: {
+			"Exit code 1: One failure, infinite disappointment.",
+			"Generic error for a generic developer.",
+			"Exit 1: First step to unemployment.",
+			"Error level 1: Your competence level 0.",
+			"Failed with distinction: Exit code 1.",
+		},
+		2: {
+			"Exit 2: Misuse of command. Misuse of developer title.",
+			"Built-in syntax error: You're a built-in failure.",
+			"Wrong arguments. Wrong career.",
+			"Command misuse detected. Life misuse detected.",
+			"Exit 2: Two brain cells, neither working.",
+		},
+		126: {
+			"Permission denied: Can't execute what you wrote anyway.",
+			"Not executable: Neither are your plans.",
+			"126: Command found, competence not found.",
+			"Can't execute: Your logic isn't executable either.",
+		},
+		127: {
+			"Command not found: Neither is your skill.",
+			"127: Path to success not found.",
+			"Command doesn't exist. Your competence doesn't exist.",
+			"Not in PATH: You're not on the path to success.",
+			"Command not found: Story of your career.",
+		},
+		128: {
+			"Invalid exit argument. Invalid life argument.",
+			"Exit 128: One-two-eight steps to failure.",
+			"Invalid signal: Your brain sends invalid signals.",
+		},
+		130: {
+			"Ctrl+C? Can't escape your mistakes that easily.",
+			"Interrupted: Like your thought process.",
+			"SIGINT: Significance? Interrupted.",
+			"Killed by keyboard: At least something stopped you.",
+		},
+		137: {
+			"SIGKILL: Something had to stop you forcefully.",
+			"Exit 137: Murdered by the system. Deservedly.",
+			"Killed with prejudice: OOMKiller knows best.",
+			"137: You were killed. Your code was mercy-killed.",
+		},
+		139: {
+			"Segmentation fault: Your logic segfaulted first.",
+			"139: Memory violation. Logic violation. Everything violation.",
+			"Segfault: Your brain segfaulted at compile time.",
+			"Core dumped: Your core competencies dumped earlier.",
+		},
+		143: {
+			"SIGTERM: Terminated for being terrible.",
+			"Graceful termination: More graceful than your code.",
+			"143: Terminated by common sense.",
+		},
+		255: {
+			"Exit 255: Overflow of failure.",
+			"Maximum exit code: Maximum incompetence.",
+			"255: You maxed out the failure counter.",
+			"Exit code overflow: Like your error overflow.",
+		},
+	}
+
+	if insults, exists := exitCodeInsults[ctx.ExitCode]; exists {
+		return selectInsult(insults, ctx.FullCommand)
+	}
+
+	return ""
+}
+
+// getCommandPatternInsult returns insults based on command + subcommand patterns
+func getCommandPatternInsult(ctx SmartFallbackContext) string {
+	pattern := ctx.Command + " " + ctx.Subcommand
+	pattern = strings.TrimSpace(pattern)
+
+	commandPatterns := map[string][]string{
+		// Git operations
+		"git push": {
+			"Push rejected: The remote has standards.",
+			"Git push failed: Even version control rejects you.",
+			"Rejected by remote: Story of your life.",
+			"Push denied: Your code is unpushable.",
+			"Remote said no: Listen to the remote.",
+			"Can't push incompetence to production.",
+			"Git push failed: Your career trajectory in command form.",
+		},
+		"git pull": {
+			"Pull failed: Can't pull competence from thin air.",
+			"Merge conflicts incoming: Your code vs. reality.",
+			"Pull rejected: Your branch diverged from sanity.",
+			"Can't pull: You're already pulling everyone down.",
+			"Fetch failed: Can't fetch what doesn't exist.",
+		},
+		"git commit": {
+			"Commit failed: Even git won't commit to your code.",
+			"Nothing to commit: Nothing worth committing.",
+			"Pre-commit hook failed: Your code failed harder.",
+			"Can't commit disaster: Wait, git tried and failed.",
+			"Commit message empty: Like your understanding.",
+		},
+		"git merge": {
+			"Merge failed: Can't merge competence into chaos.",
+			"Conflict resolution required: Start with your career.",
+			"Merge aborted: Smart choice by git.",
+			"Auto-merge failed: Manual merge won't help you either.",
+		},
+		"git clone": {
+			"Clone failed: Repository running away from you.",
+			"Can't clone competence: It doesn't exist to clone.",
+			"Permission denied: Even public repos protect themselves.",
+			"Clone timeout: Repository chose death over your attention.",
+		},
+		"git rebase": {
+			"Rebase failed: Can't rebase on a foundation of failure.",
+			"Interactive rebase: Interactively watching you fail.",
+			"Rebase conflict: Your existence conflicts with success.",
+			"Can't rewrite history to hide your incompetence.",
+		},
+		"git checkout": {
+			"Checkout failed: Can't check out from reality.",
+			"Branch not found: Neither is your competence.",
+			"Detached HEAD: Matches your detachment from reality.",
+			"Already on that branch: Already on the failure branch.",
+		},
+		"git reset": {
+			"Reset failed: Can't reset your mistakes that easily.",
+			"Hard reset won't fix soft skills.",
+			"Resetting to a previous commit won't fix current you.",
+		},
+		"git stash": {
+			"Stash failed: Can't stash your incompetence away.",
+			"Nothing to stash: Nothing worth saving.",
+			"Stash apply failed: Your problems can't be applied away.",
+		},
+		"git branch": {
+			"Branch creation failed: Branching into more failure.",
+			"Can't create branch: Too many failure branches already.",
+			"Branch diverged: You diverged from competence long ago.",
+		},
+		"git fetch": {
+			"Fetch failed: Can't fetch common sense.",
+			"Nothing to fetch: Nothing to learn from you either.",
+			"Remote unreachable: Like your career goals.",
+		},
+
+		// Docker operations
+		"docker build": {
+			"Build failed: Can't dockerize disaster.",
+			"Dockerfile syntax error: Your syntax is always wrong.",
+			"Build context too large: Your mistakes are infinite.",
+			"Layer failed: All your layers are failures.",
+			"FROM scratch: You are scratch.",
+			"Build arg undefined: Like your competence.",
+		},
+		"docker run": {
+			"Container exited immediately: Smart container.",
+			"Run failed: Nothing wants to run for you.",
+			"Port binding failed: Can't bind success to you.",
+			"Volume mount error: Can't mount your chaos.",
+			"Container crashed on startup: Your code in container form.",
+		},
+		"docker push": {
+			"Push denied: Registry has standards.",
+			"Authentication failed: You're not authenticated as competent.",
+			"Image push rejected: Your image is not production-ready.",
+			"Manifest invalid: Your competence manifest is invalid.",
+		},
+		"docker pull": {
+			"Pull failed: Can't pull what doesn't work.",
+			"Image not found: Your skill image doesn't exist.",
+			"Digest invalid: Can't digest your code.",
+		},
+		"docker-compose up": {
+			"Compose failed: Can't compose order from chaos.",
+			"Service unhealthy: You're the unhealthy service.",
+			"Network creation failed: Your networking is broken too.",
+			"Volume error: Can't volume-ize your mistakes.",
+		},
+		"docker exec": {
+			"Exec failed: Can't exec into disaster.",
+			"Container not running: Your competence isn't running either.",
+			"No such container: No such developer.",
+		},
+
+		// NPM operations
+		"npm install": {
+			"Install failed: NPM refuses to install for you.",
+			"Dependency hell: You're the dependency from hell.",
+			"Package not found: Neither is your talent.",
+			"ERESOLVE: Can't resolve your incompetence.",
+			"Peer dependency conflict: Your existence is a conflict.",
+			"Funding request: Fund your education first.",
+		},
+		"npm start": {
+			"Start script failed: Can't start what's broken.",
+			"Port already in use: By someone competent.",
+			"Module not found: Neither is your ability.",
+		},
+		"npm run": {
+			"Script not found: Neither is your skill.",
+			"Build failed: Can't build on a foundation of failure.",
+			"Test failed: Your code is the test, reality failed you.",
+		},
+		"npm test": {
+			"Tests failed: 0% passing, 100% crying.",
+			"Test suite disaster: Every assertion asserts your failure.",
+			"Coverage 0%: Covered in incompetence though.",
+		},
+
+		// Python operations
+		"python": {
+			"Python execution failed: The snake bit back.",
+			"ModuleNotFoundError: Module 'brain' not found.",
+			"SyntaxError: Invalid syntax, invalid developer.",
+			"IndentationError: Your career is misaligned too.",
+		},
+		"pip install": {
+			"Pip install failed: Package manager managing disappointment.",
+			"Requirements not met: Competence requirement not met.",
+			"Dependency resolution impossible: Like resolving to make you competent.",
+		},
+
+		// Rust operations
+		"cargo build": {
+			"Build failed: Rust compiles. You don't.",
+			"Borrow checker says no: You can't borrow competence.",
+			"Lifetime error: Your career lifetime is expiring.",
+			"Type mismatch: Expected developer, found disaster.",
+		},
+		"cargo run": {
+			"Run failed: Panic in main thread.",
+			"Binary execution failed: Your execution is always flawed.",
+		},
+
+		// Database operations
+		"mysql": {
+			"MySQL error: My SQL, your hell.",
+			"Connection refused: Database has self-respect.",
+			"Access denied: Denied access to success.",
+		},
+		"psql": {
+			"Postgres error: Post-gres, pre-disaster.",
+			"Connection failed: Can't connect competence to you.",
+		},
+
+		// Make/Build operations
+		"make": {
+			"Make failed: Make better choices.",
+			"Target not found: Your target of competence not found.",
+			"Recipe failed: Recipe for disaster succeeded though.",
+		},
+		"cmake": {
+			"CMake error: Can't make sense of you.",
+			"Configuration failed: You're misconfigured.",
+		},
+
+		// SSH operations
+		"ssh": {
+			"Connection refused: Server protecting itself.",
+			"Permission denied: Your credentials are insufficient.",
+			"Host key verification failed: Host doesn't trust you.",
+			"Timeout: Server chose silence over your presence.",
+		},
+	}
+
+	if insults, exists := commandPatterns[pattern]; exists {
+		return selectInsult(insults, ctx.FullCommand)
+	}
+
+	// Try just the command without subcommand
+	if insults, exists := commandPatterns[ctx.Command]; exists {
+		return selectInsult(insults, ctx.FullCommand)
+	}
+
+	return ""
+}
+
+// getArgumentAwareInsult returns insults based on command arguments
+func getArgumentAwareInsult(ctx SmartFallbackContext) string {
+	// Check for specific argument patterns
+	fullCmd := strings.ToLower(ctx.FullCommand)
+
+	// Force operations
+	if strings.Contains(fullCmd, " -f") || strings.Contains(fullCmd, "--force") {
+		return selectInsult([]string{
+			"Force flag detected: Forcing failure down everyone's throat.",
+			"--force won't force competence into you.",
+			"Force push to production: Force push to unemployment.",
+			"Forcing it won't make it work. Like your career.",
+		}, ctx.FullCommand)
+	}
+
+	// Sudo operations
+	if strings.HasPrefix(fullCmd, "sudo") {
+		return selectInsult([]string{
+			"Sudo failed: Superuser can't grant super-competence.",
+			"Even root privileges can't fix your code.",
+			"Sudo make me a developer: Permission denied.",
+			"With great power comes great responsibility. You have neither.",
+		}, ctx.FullCommand)
+	}
+
+	// Recursive operations
+	if strings.Contains(fullCmd, " -r") || strings.Contains(fullCmd, "--recursive") {
+		return selectInsult([]string{
+			"Recursive fail: Failing recursively at every level.",
+			"-r flag: Recursively destroying everything.",
+			"Recursion depth exceeded: By your incompetence.",
+		}, ctx.FullCommand)
+	}
+
+	// Verbose operations
+	if strings.Contains(fullCmd, " -v") || strings.Contains(fullCmd, "--verbose") {
+		return selectInsult([]string{
+			"Verbose mode: More output, same failure.",
+			"--verbose showing verbose failure details.",
+			"Verbose mode: Because watching you fail in detail is entertaining.",
+		}, ctx.FullCommand)
+	}
+
+	// Help flags
+	if strings.Contains(fullCmd, " --help") || strings.Contains(fullCmd, " -h") {
+		return selectInsult([]string{
+			"Reading help? That ship sailed long ago.",
+			"--help can't help you now.",
+			"Even the help documentation gave up on you.",
+			"RTFM: Read The Failed Manual you just failed.",
+		}, ctx.FullCommand)
+	}
+
+	// Version checks
+	if strings.Contains(fullCmd, "--version") || strings.Contains(fullCmd, "-v") {
+		return selectInsult([]string{
+			"Checking version: Your version is deprecated.",
+			"--version: v0.0.0-incompetent",
+			"Software version: Current. Developer version: Obsolete.",
+		}, ctx.FullCommand)
+	}
+
+	return ""
+}
+
+// selectInsult picks an insult using pseudo-random selection
+func selectInsult(insults []string, seed string) string {
+	if len(insults) == 0 {
+		return ""
+	}
+
+	hash := 0
+	for _, char := range seed {
+		hash = hash*31 + int(char)
+	}
+	if hash < 0 {
+		hash = -hash
+	}
+
+	return insults[hash%len(insults)]
+}
