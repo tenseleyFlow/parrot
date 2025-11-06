@@ -33,6 +33,15 @@ type SmartFallbackContext struct {
 	GitBranch      string
 	ProjectType    string // "node", "rust", "go", "python", "java", etc.
 	ProjectFiles   []string // List of project files found
+
+	// Tier 3 Intelligence
+	IsCI               bool     // Running in CI/CD environment
+	CIProvider         string   // "github", "gitlab", "jenkins", "circle", etc.
+	HasDockerfile      bool
+	HasMakefile        bool
+	DependencyCount    int      // Rough estimate of dependencies
+	ErrorPattern       string   // Detected error pattern
+	IsRepeatedFailure  bool     // Same command failed recently
 }
 
 // ParseCommandContext extracts context from a command for intelligent fallback
@@ -105,19 +114,64 @@ func ParseCommandContext(command string, commandType string, exitCode string) Sm
 	// Detect project type by checking for common project files
 	ctx.ProjectType, ctx.ProjectFiles = detectProjectType()
 
+	// Tier 3 Intelligence Gathering
+
+	// Detect CI/CD environment
+	ctx.IsCI, ctx.CIProvider = detectCIEnvironment(ctx.Environment)
+
+	// Detect Docker and build files
+	ctx.HasDockerfile = fileExists("Dockerfile") || fileExists("docker-compose.yml")
+	ctx.HasMakefile = fileExists("Makefile")
+
+	// Estimate dependency count
+	ctx.DependencyCount = estimateDependencyCount(ctx.ProjectType)
+
+	// Detect common error patterns from exit code
+	ctx.ErrorPattern = detectErrorPattern(ctx.ExitCode, command)
+
+	// Track repeated failures (simple in-process tracking)
+	ctx.IsRepeatedFailure = trackFailure(command)
+
 	return ctx
 }
 
 // GenerateSmartFallback generates a context-aware insult
 func GenerateSmartFallback(ctx SmartFallbackContext) string {
-	// Tier 2 Intelligence - Highest Priority
+	// Tier 3 Intelligence - Highest Priority (LLM-like awareness)
 
-	// 1. Git branch awareness
+	// 1. Repeated failure escalation
+	if insult := getRepeatedFailureInsult(ctx); insult != "" {
+		return insult
+	}
+
+	// 2. CI/CD environment detection
+	if insult := getCIInsult(ctx); insult != "" {
+		return insult
+	}
+
+	// 3. Error pattern recognition
+	if insult := getErrorPatternInsult(ctx); insult != "" {
+		return insult
+	}
+
+	// 4. Docker/Build system awareness
+	if insult := getBuildSystemInsult(ctx); insult != "" {
+		return insult
+	}
+
+	// 5. Dependency complexity awareness
+	if insult := getDependencyInsult(ctx); insult != "" {
+		return insult
+	}
+
+	// Tier 2 Intelligence
+
+	// 6. Git branch awareness
 	if insult := getGitBranchInsult(ctx); insult != "" {
 		return insult
 	}
 
-	// 2. Project type detection
+	// 7. Project type detection
 	if insult := getProjectTypeInsult(ctx); insult != "" {
 		return insult
 	}
@@ -1110,4 +1164,320 @@ func selectInsult(insults []string, seed string) string {
 	}
 
 	return insults[hash%len(insults)]
+}
+
+// ============================================================================
+// TIER 3 INTELLIGENCE - Advanced LLM-like Context Awareness
+// ============================================================================
+
+// fileExists checks if a file exists
+func fileExists(filename string) bool {
+	_, err := os.Stat(filename)
+	return err == nil
+}
+
+// detectCIEnvironment detects if running in CI/CD
+func detectCIEnvironment(env map[string]string) (bool, string) {
+	ciChecks := map[string]string{
+		"GITHUB_ACTIONS": "github",
+		"GITLAB_CI":      "gitlab",
+		"JENKINS_HOME":   "jenkins",
+		"CIRCLECI":       "circle",
+		"TRAVIS":         "travis",
+		"CI":             "generic",
+	}
+
+	for envVar, provider := range ciChecks {
+		if _, exists := env[envVar]; exists {
+			return true, provider
+		}
+	}
+
+	return false, ""
+}
+
+// estimateDependencyCount estimates project complexity
+func estimateDependencyCount(projectType string) int {
+	switch projectType {
+	case "node":
+		// Check package.json for rough count
+		if data, err := os.ReadFile("package.json"); err == nil {
+			// Rough heuristic: count dependencies and devDependencies
+			count := strings.Count(string(data), `"dependencies"`)
+			count += strings.Count(string(data), `"devDependencies"`)
+			if count > 0 {
+				// Estimate ~20-100 deps if sections exist
+				return 50
+			}
+		}
+	case "rust":
+		if data, err := os.ReadFile("Cargo.toml"); err == nil {
+			// Count [dependencies] entries
+			deps := strings.Count(string(data), "\n") / 3
+			return deps
+		}
+	case "go":
+		if data, err := os.ReadFile("go.mod"); err == nil {
+			// Count require statements
+			deps := strings.Count(string(data), "require")
+			return deps
+		}
+	case "python":
+		if data, err := os.ReadFile("requirements.txt"); err == nil {
+			// Count lines
+			deps := strings.Count(string(data), "\n")
+			return deps
+		}
+	}
+	return 0
+}
+
+// detectErrorPattern recognizes common error patterns
+func detectErrorPattern(exitCode int, command string) string {
+	// Map exit codes to error patterns
+	patterns := map[int]string{
+		1:   "general_error",
+		2:   "misuse",
+		126: "permission_denied",
+		127: "command_not_found",
+		128: "invalid_exit",
+		130: "ctrl_c",
+		137: "killed",
+		139: "segfault",
+		143: "sigterm",
+		255: "network_error",
+	}
+
+	if pattern, exists := patterns[exitCode]; exists {
+		return pattern
+	}
+
+	// Pattern detection from command content
+	cmdLower := strings.ToLower(command)
+	if strings.Contains(cmdLower, "permission") || strings.Contains(cmdLower, "denied") {
+		return "permission_denied"
+	}
+	if strings.Contains(cmdLower, "connection") || strings.Contains(cmdLower, "refused") {
+		return "connection_refused"
+	}
+	if strings.Contains(cmdLower, "timeout") {
+		return "timeout"
+	}
+	if strings.Contains(cmdLower, "not found") || strings.Contains(cmdLower, "404") {
+		return "not_found"
+	}
+
+	return ""
+}
+
+// failureTracker stores recent command failures (simple in-process tracking)
+var failureTracker = make(map[string]int)
+
+// trackFailure tracks command failures and detects repeats
+func trackFailure(command string) bool {
+	// Create a simple hash of the command
+	hash := 0
+	for _, char := range command {
+		hash = hash*31 + int(char)
+	}
+	cmdHash := strconv.Itoa(hash)
+
+	// Increment failure count
+	failureTracker[cmdHash]++
+
+	// Consider it repeated if failed 2+ times
+	return failureTracker[cmdHash] >= 2
+}
+
+// getRepeatedFailureInsult returns escalated insults for repeated failures
+func getRepeatedFailureInsult(ctx SmartFallbackContext) string {
+	if !ctx.IsRepeatedFailure {
+		return ""
+	}
+
+	insults := []string{
+		"Same command, same failure. Definition of insanity.",
+		"Trying again? Einstein called: That's insanity.",
+		"Repeated failure detected. Time to try reading docs.",
+		"Still failing? Maybe it's not the computer.",
+		"Second time's the charm? Not for you.",
+		"Failure #2: The sequel nobody asked for.",
+		"Doing it again won't make it work. Won't make you smarter either.",
+		"Another attempt, another disaster. Predictable.",
+		"Groundhog Day: The Failure Edition.",
+		"Learning from mistakes requires learning.",
+		"Try, fail, repeat. The three-step program to nowhere.",
+		"Persistence is admirable. Persistent incompetence isn't.",
+		"You're very consistent. Consistently wrong.",
+		"Same command, different hour, identical disaster.",
+		"Repeating mistakes: The one skill you've mastered.",
+	}
+
+	return selectInsult(insults, ctx.FullCommand)
+}
+
+// getCIInsult returns CI/CD-specific insults
+func getCIInsult(ctx SmartFallbackContext) string {
+	if !ctx.IsCI {
+		return ""
+	}
+
+	ciInsults := map[string][]string{
+		"github": {
+			"Breaking GitHub Actions? Breaking everyone's sprint.",
+			"GitHub Actions failed: Your actions speak volumes.",
+			"GH Actions: Great Humiliation Actions.",
+			"Failed in CI: Continuous Integration of Disaster.",
+			"GitHub Actions: Git blame yourself.",
+		},
+		"gitlab": {
+			"GitLab CI failed: Commit to unemployment.",
+			"Pipeline broken: Your career too.",
+			"GitLab runner failed: Run from development.",
+			"CI/CD failed: Career Imminent Cancellation Detected.",
+		},
+		"jenkins": {
+			"Jenkins job failed: Job security failed.",
+			"Build #404: Competence not found.",
+			"Jenkins says: Build career, not this garbage.",
+			"Red build: Your face should match.",
+		},
+		"circle": {
+			"CircleCI failed: Circle of failure complete.",
+			"Workflow failed: Work towards new career flow.",
+			"Circle CI: Circular logic detected.",
+		},
+		"travis": {
+			"Travis CI broken: Travis-ty of errors.",
+			"Build failed: Career build deprecated.",
+		},
+		"generic": {
+			"CI failed: Continuous Integration? Continuous Incompetence.",
+			"Breaking the build: Breaking your team's trust.",
+			"Failed in CI: Everyone can see your shame.",
+			"Pipeline blocked: By your incompetence.",
+		},
+	}
+
+	if insults, exists := ciInsults[ctx.CIProvider]; exists {
+		return selectInsult(insults, ctx.FullCommand)
+	}
+
+	return ""
+}
+
+// getErrorPatternInsult returns pattern-specific insults
+func getErrorPatternInsult(ctx SmartFallbackContext) string {
+	if ctx.ErrorPattern == "" {
+		return ""
+	}
+
+	patternInsults := map[string][]string{
+		"permission_denied": {
+			"Permission denied: Denied access to competence too.",
+			"No permission: No skill either.",
+			"sudo won't fix this level of incompetence.",
+			"Access denied: Reality denying you success.",
+			"Insufficient permissions: Insufficient everything.",
+		},
+		"command_not_found": {
+			"Command not found: Competence not found.",
+			"404: Command missing. Also: Your skill.",
+			"Command not found: Try 'find-new-career'.",
+			"PATH searched: Competence not in PATH.",
+		},
+		"connection_refused": {
+			"Connection refused: Server refused your incompetence.",
+			"Connection denied: Denied by reality.",
+			"Can't connect: Reality disconnecting from you.",
+			"Connection refused: Even localhost rejects you.",
+		},
+		"timeout": {
+			"Timeout: Even the computer gave up waiting.",
+			"Request timed out: So did patience.",
+			"Timeout: Time to consider new profession.",
+			"Connection timeout: Career timeout imminent.",
+		},
+		"segfault": {
+			"Segmentation fault: Segmented from reality.",
+			"Segfault: Memory accessed. Memory of competence: Not found.",
+			"Core dumped: Core competence: Also dumped.",
+			"Segfault: Your code violated everything.",
+		},
+		"killed": {
+			"Process killed: Career should be too.",
+			"Killed by signal: Signaling incompetence.",
+			"SIGKILL received: Kill switch on career recommended.",
+		},
+		"not_found": {
+			"Not found: Your skill is also 404.",
+			"404: Not found. Unlike your incompetence: Always 200 OK.",
+			"Resource not found: Resources for learning: Also not found.",
+		},
+	}
+
+	if insults, exists := patternInsults[ctx.ErrorPattern]; exists {
+		return selectInsult(insults, ctx.FullCommand)
+	}
+
+	return ""
+}
+
+// getBuildSystemInsult returns build tool specific insults
+func getBuildSystemInsult(ctx SmartFallbackContext) string {
+	insults := []string{}
+
+	if ctx.HasDockerfile {
+		insults = append(insults,
+			"Dockerfile detected: Can't containerize competence.",
+			"Docker build failed: Image of failure created.",
+			"Container crashed: Can't contain your mistakes.",
+			"Dockerfile present: Should've dockerized your career away.",
+		)
+	}
+
+	if ctx.HasMakefile {
+		insults = append(insults,
+			"Makefile found: Make disasters, not software.",
+			"make failed: Made a mistake becoming a developer.",
+			"Build system detected: System detected you.",
+		)
+	}
+
+	if len(insults) > 0 {
+		return selectInsult(insults, ctx.FullCommand)
+	}
+
+	return ""
+}
+
+// getDependencyInsult returns complexity-aware insults
+func getDependencyInsult(ctx SmartFallbackContext) string {
+	if ctx.DependencyCount == 0 {
+		return ""
+	}
+
+	var insults []string
+
+	if ctx.DependencyCount > 100 {
+		insults = []string{
+			"100+ dependencies: Depending on others for your failures.",
+			"Dependency hell: You're everyone's least favorite dependency.",
+			"Massive dependency tree: Tree of incompetence.",
+			"Dependencies: Hundreds. Competence: Zero.",
+		}
+	} else if ctx.DependencyCount > 20 {
+		insults = []string{
+			"Dependencies detected: You depend on failure.",
+			"Package.json bloated: Like your ego, unlike your skill.",
+			"Dependency count high: Skill count low.",
+			"Many dependencies: None can fix this.",
+		}
+	}
+
+	if len(insults) > 0 {
+		return selectInsult(insults, ctx.FullCommand)
+	}
+
+	return ""
 }
