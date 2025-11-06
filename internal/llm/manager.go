@@ -63,7 +63,7 @@ func NewLLMManager(cfg *config.Config) *LLMManager {
 func (m *LLMManager) Generate(ctx context.Context, prompt string, commandType string) (string, Backend) {
 	// If fallback mode is enabled, skip LLM backends
 	if m.config.General.FallbackMode {
-		return m.generateFallback(commandType), BackendFallback
+		return m.generateFallback(commandType, "", ""), BackendFallback
 	}
 	
 	// Try backends in priority order: API -> Local -> Fallback
@@ -125,7 +125,76 @@ func (m *LLMManager) Generate(ctx context.Context, prompt string, commandType st
 	if m.config.General.Debug {
 		fmt.Printf("🔄 Using fallback backend\n")
 	}
-	return m.generateFallback(commandType), BackendFallback
+	return m.generateFallback(commandType, "", ""), BackendFallback
+}
+
+// GenerateWithContext generates a response with full context for intelligent fallbacks
+func (m *LLMManager) GenerateWithContext(ctx context.Context, prompt string, commandType string, fullCommand string, exitCode string) (string, Backend) {
+	// If fallback mode is enabled, skip LLM backends
+	if m.config.General.FallbackMode {
+		return m.generateFallback(commandType, fullCommand, exitCode), BackendFallback
+	}
+
+	// Try backends in priority order: API -> Local -> Fallback
+
+	// 1. Try API first (if available)
+	if m.apiClient != nil && m.config.API.Enabled {
+		if m.config.General.Debug {
+			fmt.Printf("🔍 Trying API backend...\n")
+		}
+
+		// Create timeout context for API calls
+		timeoutDuration := time.Duration(m.config.API.Timeout) * time.Second
+		apiCtx, cancel := context.WithTimeout(ctx, timeoutDuration)
+		defer cancel()
+
+		response, err := m.apiClient.Generate(apiCtx, prompt)
+		if err == nil && response != "" {
+			response = m.cleanResponse(response)
+			if m.config.General.Debug {
+				fmt.Printf("✅ API backend succeeded\n")
+			}
+			return response, BackendAPI
+		}
+
+		if m.config.General.Debug {
+			fmt.Printf("❌ API backend failed: %v\n", err)
+		}
+	}
+
+	// 2. Try local Ollama (if available)
+	if m.ollamaClient != nil && m.config.Local.Enabled {
+		if m.config.General.Debug {
+			fmt.Printf("🔍 Trying local backend...\n")
+		}
+
+		// Create timeout context for local calls
+		timeoutDuration := time.Duration(m.config.Local.Timeout) * time.Second
+		localCtx, cancel := context.WithTimeout(ctx, timeoutDuration)
+		defer cancel()
+
+		response, err := m.ollamaClient.Generate(localCtx, prompt)
+		if m.config.General.Debug {
+			fmt.Printf("🐛 Raw Ollama response: '%s', error: %v\n", response, err)
+		}
+		if err == nil && response != "" {
+			response = m.cleanResponse(response)
+			if m.config.General.Debug {
+				fmt.Printf("✅ Local backend succeeded with: '%s'\n", response)
+			}
+			return response, BackendLocal
+		}
+
+		if m.config.General.Debug {
+			fmt.Printf("❌ Local backend failed: %v\n", err)
+		}
+	}
+
+	// 3. Fallback to smart context-aware responses
+	if m.config.General.Debug {
+		fmt.Printf("🔄 Using smart fallback backend\n")
+	}
+	return m.generateFallback(commandType, fullCommand, exitCode), BackendFallback
 }
 
 func (m *LLMManager) cleanResponse(response string) string {
@@ -190,55 +259,18 @@ func (m *LLMManager) cleanResponse(response string) string {
 	return strings.TrimSpace(response)
 }
 
-func (m *LLMManager) generateFallback(commandType string) string {
-	fallbacks := map[string][]string{
-		"git": {
-			"Git good? More like git rekt!",
-			"Did you forget to pull again? Classic amateur move.",
-			"Another git genius strikes again!",
-			"Your commits are as broken as your workflow.",
-		},
-		"nodejs": {
-			"NPM install failed? Shocking! Nobody saw that coming.",
-			"Your package.json is crying. Fix it.",
-			"Node modules: where dependencies go to die.",
-			"Even npm doesn't want to deal with your code.",
-		},
-		"docker": {
-			"Docker container more like docker DISASTER!",
-			"Even containers can't contain your incompetence.",
-			"Your Dockerfile needs therapy.",
-			"Container exit code: user error detected.",
-		},
-		"http": {
-			"404: Competence not found.",
-			"Even the internet doesn't want to talk to you.",
-			"Connection refused? So is your logic.",
-			"HTTP status: 500 Internal User Error.",
-		},
-		"generic": {
-			"Wow, you managed to break something simple. Impressive!",
-			"Maybe try reading the manual... oh wait, who am I kidding?",
-			"Error code says it all: user error!",
-			"Have you tried turning your brain on and off again?",
-		},
+func (m *LLMManager) generateFallback(commandType string, fullCommand string, exitCode string) string {
+	// Use smart context-aware fallback when we have context
+	if fullCommand != "" || exitCode != "" {
+		ctx := ParseCommandContext(fullCommand, commandType, exitCode)
+		insult := GenerateSmartFallback(ctx)
+		if insult != "" {
+			return insult
+		}
 	}
-	
-	responses, exists := fallbacks[commandType]
-	if !exists {
-		responses = fallbacks["generic"]
-	}
-	
-	// Simple pseudo-random selection based on command type
-	hash := 0
-	for _, char := range commandType {
-		hash = hash*31 + int(char)
-	}
-	if hash < 0 {
-		hash = -hash
-	}
-	
-	return responses[hash%len(responses)]
+
+	// Fall back to expanded database if no smart match
+	return GetExpandedFallback(commandType, fullCommand)
 }
 
 func (m *LLMManager) GetStatus() map[string]interface{} {
