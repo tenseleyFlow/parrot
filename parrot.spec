@@ -3,7 +3,7 @@
 Name:           parrot
 Version:        1.4.0
 Release:        1%{?dist}
-Summary:        Intelligent CLI command failure assistant with AI-powered responses
+Summary:        Intelligent roasts of failed commands
 
 License:        MIT
 URL:            https://github.com/tenseleyFlow/parrot
