@@ -73,8 +73,13 @@ func (m *LLMManager) Generate(ctx context.Context, prompt string, commandType st
 		if m.config.General.Debug {
 			fmt.Printf("🔍 Trying API backend...\n")
 		}
-		
-		response, err := m.apiClient.Generate(ctx, prompt)
+
+		// Create timeout context for API calls
+		timeoutDuration := time.Duration(m.config.API.Timeout) * time.Second
+		apiCtx, cancel := context.WithTimeout(ctx, timeoutDuration)
+		defer cancel()
+
+		response, err := m.apiClient.Generate(apiCtx, prompt)
 		if err == nil && response != "" {
 			response = m.cleanResponse(response)
 			if m.config.General.Debug {
@@ -82,7 +87,7 @@ func (m *LLMManager) Generate(ctx context.Context, prompt string, commandType st
 			}
 			return response, BackendAPI
 		}
-		
+
 		if m.config.General.Debug {
 			fmt.Printf("❌ API backend failed: %v\n", err)
 		}

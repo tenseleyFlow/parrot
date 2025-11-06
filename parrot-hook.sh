@@ -50,22 +50,36 @@ parrot_precmd() {
     fi
 }
 
-# Setup based on shell type
-if [ -n "$BASH_VERSION" ]; then
-    # Bash setup
-    PROMPT_COMMAND="parrot_prompt_command${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
-    echo "🦜 Parrot is now watching your bash commands..."
-elif [ -n "$ZSH_VERSION" ]; then
-    # Zsh setup
-    autoload -Uz add-zsh-hook
-    add-zsh-hook preexec parrot_preexec
-    add-zsh-hook precmd parrot_precmd
-    echo "🦜 Parrot is now watching your zsh commands..."
-else
-    echo "⚠️  Parrot: Unsupported shell. Only bash and zsh are supported."
-fi
+# Setup based on shell type (only show messages if not already initialized)
+if [ -z "$PARROT_INITIALIZED" ]; then
+    if [ -n "$BASH_VERSION" ]; then
+        # Bash setup
+        PROMPT_COMMAND="parrot_prompt_command${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
+        echo "🦜 Parrot is now watching your bash commands..."
+    elif [ -n "$ZSH_VERSION" ]; then
+        # Zsh setup
+        autoload -Uz add-zsh-hook
+        add-zsh-hook preexec parrot_preexec
+        add-zsh-hook precmd parrot_precmd
+        echo "🦜 Parrot is now watching your zsh commands..."
+    else
+        echo "⚠️  Parrot: Unsupported shell. Only bash and zsh are supported."
+    fi
 
-# Show performance tip
-if [ "${PARROT_ASYNC:-}" != "true" ]; then
-    echo "💡 Tip: Set PARROT_ASYNC=true to prevent terminal hangs on slow networks"
+    # Show performance tip
+    if [ "${PARROT_ASYNC:-}" != "true" ]; then
+        echo "💡 Tip: Set PARROT_ASYNC=true to prevent terminal hangs on slow networks"
+    fi
+
+    # Mark as initialized for this shell session
+    export PARROT_INITIALIZED=1
+else
+    # Silent re-initialization (e.g., when sourcing .zshrc again)
+    if [ -n "$BASH_VERSION" ]; then
+        PROMPT_COMMAND="parrot_prompt_command${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
+    elif [ -n "$ZSH_VERSION" ]; then
+        autoload -Uz add-zsh-hook
+        add-zsh-hook preexec parrot_preexec
+        add-zsh-hook precmd parrot_precmd
+    fi
 fi
