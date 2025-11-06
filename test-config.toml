@@ -9,7 +9,7 @@
 [local]
   enabled = true
   provider = "ollama"
-  endpoint = "http://localhost:11434"
+  endpoint = "http://127.0.0.1:11434"
   model = "phi3.5:3.8b"
   timeout = 30
 

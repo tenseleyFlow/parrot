@@ -39,7 +39,8 @@ timeout = 30
 
 [local]
 # Ollama server endpoint
-base_url = "http://localhost:11434"
+# Note: Use 127.0.0.1 instead of localhost to avoid IPv6 resolution issues
+base_url = "http://127.0.0.1:11434"
 
 # Model to use (will be pulled automatically if not present)
 # llama3.2:3b - Fast loading, good quality for CLI responses
