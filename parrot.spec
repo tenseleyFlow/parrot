@@ -1,7 +1,7 @@
 %define debug_package %{nil}
 
 Name:           parrot
-Version:        1.6.1
+Version:        1.7.1
 Release:        1%{?dist}
 Summary:        Intelligent roasts of failed commands
 
@@ -109,6 +109,9 @@ fi
 %{_docdir}/%{name}/
 
 %changelog
+* Thu Nov 07 2025 mfw <espadonne@outlook.com> - 1.7.1-1
+- Version bump to 1.7.1
+
 * Fri Nov 07 2025 mfw <espadonne@outlook.com> - 1.6.1-1
 - Fix: Install parrot-hook.fish for fish shell support
 - Fix: Hook script not found error on fish shell
