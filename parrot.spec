@@ -1,7 +1,7 @@
 %define debug_package %{nil}
 
 Name:           parrot
-Version:        1.6.0
+Version:        1.6.1
 Release:        1%{?dist}
 Summary:        Intelligent roasts of failed commands
 
@@ -109,6 +109,11 @@ fi
 %{_docdir}/%{name}/
 
 %changelog
+* Thu Nov 07 2025 mfw <espadonne@outlook.com> - 1.6.1-1
+- Fix: Install parrot-hook.fish for fish shell support
+- Fix: Hook script not found error on fish shell
+- Add Homebrew caveats for better installation experience
+
 * Wed Nov 06 2024 mfw <espadonne@outlook.com> - 1.6.0-1
 - Add native fish shell support
 - Shell integration now works with bash, zsh, and fish
