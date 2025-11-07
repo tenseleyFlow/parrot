@@ -163,7 +163,16 @@ func runSetup(cmd *cobra.Command, args []string) {
 	fmt.Println("───────────────────")
 	fmt.Println("To automatically roast failed commands:")
 	fmt.Println("   1. Run: parrot install")
-	fmt.Println("   2. Restart your shell or run: source ~/.bashrc")
+
+	shell := os.Getenv("SHELL")
+	if filepath.Base(shell) == "fish" {
+		fmt.Println("   2. Restart your shell or run: source ~/.config/fish/config.fish")
+	} else if filepath.Base(shell) == "zsh" {
+		fmt.Println("   2. Restart your shell or run: source ~/.zshrc")
+	} else {
+		fmt.Println("   2. Restart your shell or run: source ~/.bashrc")
+	}
+
 	fmt.Println("   3. Try failing a command and watch parrot respond!")
 	
 	// Step 5: Final tips
@@ -283,10 +292,18 @@ func installShellHooks(cfg *config.Config) {
 	if response == "" || response == "y" || response == "Y" {
 		// Simulate parrot install command
 		fmt.Println("   Running: parrot install")
-		
+
 		// Call the actual install logic (we'd need to refactor install command)
 		fmt.Println("✅ Shell hooks installed!")
-		fmt.Println("2. 🔄 Restart your shell or run: source ~/.bashrc")
+
+		shell := os.Getenv("SHELL")
+		if filepath.Base(shell) == "fish" {
+			fmt.Println("2. 🔄 Restart your shell or run: source ~/.config/fish/config.fish")
+		} else if filepath.Base(shell) == "zsh" {
+			fmt.Println("2. 🔄 Restart your shell or run: source ~/.zshrc")
+		} else {
+			fmt.Println("2. 🔄 Restart your shell or run: source ~/.bashrc")
+		}
 	} else {
 		fmt.Println("⏭️  Skipped - run 'parrot install' later to enable auto-roasting")
 	}
