@@ -47,6 +47,7 @@ install -m 755 parrot %{buildroot}%{_bindir}/parrot
 # Install shell integration hooks
 install -d %{buildroot}%{_datadir}/%{name}
 install -m 644 parrot-hook.sh %{buildroot}%{_datadir}/%{name}/parrot-hook.sh
+install -m 644 parrot-hook.fish %{buildroot}%{_datadir}/%{name}/parrot-hook.fish
 
 # Install configuration templates
 install -d %{buildroot}%{_sysconfdir}/%{name}
@@ -103,6 +104,7 @@ fi
 %files
 %{_bindir}/parrot
 %{_datadir}/%{name}/parrot-hook.sh
+%{_datadir}/%{name}/parrot-hook.fish
 %{_sysconfdir}/%{name}/parrot.toml.example
 %{_docdir}/%{name}/
 
