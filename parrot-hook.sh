@@ -63,7 +63,8 @@ if [ -z "$PARROT_INITIALIZED" ]; then
         add-zsh-hook precmd parrot_precmd
         echo "🦜 Parrot is now watching your zsh commands..."
     else
-        echo "⚠️  Parrot: Unsupported shell. Only bash and zsh are supported."
+        echo "⚠️  Parrot: Unsupported shell. Only bash, zsh, and fish are supported."
+        echo "💡 For fish shell, use parrot-hook.fish instead."
     fi
 
     # Show performance tip
