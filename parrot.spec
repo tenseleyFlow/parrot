@@ -1,7 +1,7 @@
 %define debug_package %{nil}
 
 Name:           parrot
-Version:        1.5.1
+Version:        1.6.0
 Release:        1%{?dist}
 Summary:        Intelligent roasts of failed commands
 
@@ -25,7 +25,7 @@ LLM models via Ollama, and fallback responses for guaranteed functionality.
 Features:
 - Multi-backend architecture (API → Local → Fallback)
 - Three personality levels (mild, sarcastic, savage)
-- Shell integration for bash and zsh
+- Shell integration for bash, zsh, and fish
 - Interactive configuration wizard
 - Comprehensive setup automation
 - Terminal color theming
@@ -107,6 +107,10 @@ fi
 %{_docdir}/%{name}/
 
 %changelog
+* Wed Nov 06 2024 mfw <espadonne@outlook.com> - 1.6.0-1
+- Add native fish shell support
+- Shell integration now works with bash, zsh, and fish
+
 * Wed Nov 06 2024 mfw <espadonne@outlook.com> - 1.5.1-1
 - Expansion V6: UNSTOPPABLE 8-category blitz - 314 NEW insults!
 - Expansion V5: EPIC 10-category expansion - 385 NEW insults!
