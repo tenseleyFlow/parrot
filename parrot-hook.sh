@@ -55,21 +55,29 @@ if [ -z "$PARROT_INITIALIZED" ]; then
     if [ -n "$BASH_VERSION" ]; then
         # Bash setup
         PROMPT_COMMAND="parrot_prompt_command${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
-        echo "🦜 Parrot is now watching your bash commands..."
+        # Only show message in interactive shells
+        if [[ $- == *i* ]]; then
+            echo "🦜 Parrot is now watching your bash commands..."
+        fi
     elif [ -n "$ZSH_VERSION" ]; then
         # Zsh setup
         autoload -Uz add-zsh-hook
         add-zsh-hook preexec parrot_preexec
         add-zsh-hook precmd parrot_precmd
-        echo "🦜 Parrot is now watching your zsh commands..."
+        # Only show message in interactive shells
+        if [[ -o interactive ]]; then
+            echo "🦜 Parrot is now watching your zsh commands..."
+        fi
     else
         echo "⚠️  Parrot: Unsupported shell. Only bash, zsh, and fish are supported."
         echo "💡 For fish shell, use parrot-hook.fish instead."
     fi
 
-    # Show performance tip
-    if [ "${PARROT_ASYNC:-}" != "true" ]; then
-        echo "💡 Tip: Set PARROT_ASYNC=true to prevent terminal hangs on slow networks"
+    # Show performance tip only in interactive shells
+    if [[ $- == *i* ]] || [[ -o interactive ]] 2>/dev/null; then
+        if [ "${PARROT_ASYNC:-}" != "true" ]; then
+            echo "💡 Tip: Set PARROT_ASYNC=true to prevent terminal hangs on slow networks"
+        fi
     fi
 
     # Mark as initialized for this shell session
