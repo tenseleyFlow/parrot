@@ -24,7 +24,7 @@ go build -o parrot main.go
 ```bash
 # Basic functionality (works immediately)
 ./parrot install              # Install shell hooks
-source ~/.bashrc              # Restart shell
+source ~/.bashrc              # For bash (or ~/.zshrc for zsh, ~/.config/fish/config.fish for fish)
 
 # Add intelligence later
 ./parrot configure            # Interactive config wizard
@@ -35,6 +35,24 @@ source ~/.bashrc              # Restart shell
 git push origin nonexistent   # Try failing a command
 # 🦜 Git rejected your code harder than everyone rejects you.
 ```
+
+### **🐠 Fish Shell Support**
+
+Parrot fully supports fish shell! The installation process automatically detects fish and configures it appropriately:
+
+```bash
+# Build parrot
+go build -o parrot main.go
+
+# Install (automatically detects fish)
+./parrot install
+# Configuration is installed to ~/.config/fish/conf.d/parrot.fish
+
+# Restart fish or source the config
+source ~/.config/fish/config.fish
+```
+
+Fish users get the same sassy experience with native fish syntax and hooks!
 
 ## Manual Testing
 
