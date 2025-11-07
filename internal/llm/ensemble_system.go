@@ -8,6 +8,7 @@ import (
 // EnsembleSystem combines multiple ML techniques for optimal insult selection
 type EnsembleSystem struct {
 	tfidfEngine      *TFIDFEngine
+	bm25Engine       *BM25Engine  // NEW: Industry-standard BM25 ranking
 	markovGen        *MarkovGenerator
 	insultScorer     *InsultScorer
 	database         *InsultDatabase
@@ -24,8 +25,9 @@ type EnsembleSystem struct {
 	minTagScore       float64
 	minEnsembleScore  float64
 
-	// Training state
-	trained bool
+	// Configuration
+	useBM25    bool  // Use BM25 instead of TF-IDF (recommended)
+	trained    bool  // Training state
 }
 
 // EnsembleScore represents a comprehensive scoring of an insult candidate
@@ -45,6 +47,7 @@ type EnsembleScore struct {
 func NewEnsembleSystem(db *InsultDatabase, scorer *InsultScorer, hist *InsultHistory) *EnsembleSystem {
 	return &EnsembleSystem{
 		tfidfEngine:      NewTFIDFEngine(),
+		bm25Engine:       NewBM25Engine(),
 		markovGen:        NewMarkovGenerator(2), // Bigram model
 		insultScorer:     scorer,
 		database:         db,
@@ -61,6 +64,8 @@ func NewEnsembleSystem(db *InsultDatabase, scorer *InsultScorer, hist *InsultHis
 		minTagScore:      0.30,
 		minEnsembleScore: 0.40,
 
+		// Use BM25 by default (proven better than TF-IDF)
+		useBM25: true,
 		trained: false,
 	}
 }
@@ -79,6 +84,9 @@ func (es *EnsembleSystem) Train() {
 
 	// Train TF-IDF engine
 	es.tfidfEngine.BuildCorpus(insults)
+
+	// Train BM25 engine (improved ranking algorithm)
+	es.bm25Engine.BuildCorpus(insults)
 
 	// Train Markov generator
 	es.markovGen.Train(insults)
@@ -195,7 +203,7 @@ func (es *EnsembleSystem) scoreInsult(
 	return score
 }
 
-// calculateSemanticScore uses TF-IDF for semantic similarity
+// calculateSemanticScore uses BM25 or TF-IDF for semantic similarity
 func (es *EnsembleSystem) calculateSemanticScore(
 	ctx *SmartFallbackContext,
 	insult TaggedInsult,
@@ -203,11 +211,20 @@ func (es *EnsembleSystem) calculateSemanticScore(
 	// Create a rich context description
 	contextText := es.buildContextText(ctx)
 
-	// Calculate cosine similarity
-	similarity := es.tfidfEngine.CalculateSemanticScore(contextText, insult.Text)
+	var score float64
 
-	// Normalize to 0-1 range and apply sigmoid for better distribution
-	return sigmoid(similarity * 2.0)
+	if es.useBM25 {
+		// Use BM25 (industry standard, proven better)
+		// BM25 scores are typically in range 0-10, normalize to 0-1
+		rawScore := es.bm25Engine.Score(contextText, insult.Text)
+		score = math.Min(rawScore/10.0, 1.0)
+	} else {
+		// Use TF-IDF (for comparison)
+		similarity := es.tfidfEngine.CalculateSemanticScore(contextText, insult.Text)
+		score = sigmoid(similarity * 2.0)
+	}
+
+	return score
 }
 
 // buildContextText creates rich text representation of context
