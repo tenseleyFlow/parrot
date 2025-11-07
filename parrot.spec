@@ -1,7 +1,7 @@
 %define debug_package %{nil}
 
 Name:           parrot
-Version:        1.7.2
+Version:        1.7.3
 Release:        1%{?dist}
 Summary:        Intelligent roasts of failed commands
 
@@ -109,6 +109,9 @@ fi
 %{_docdir}/%{name}/
 
 %changelog
+* Thu Nov 07 2025 mfw <espadonne@outlook.com> - 1.7.3-1
+- Fix: Shell hook integration improvements for fish and bash
+
 * Thu Nov 07 2025 mfw <espadonne@outlook.com> - 1.7.2-1
 - Version bump to 1.7.2
 
