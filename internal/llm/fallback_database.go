@@ -1621,6 +1621,11 @@ func GetExpandedFallback(commandType string, command string) string {
 		responses, exists = InsultExpansion[commandType]
 	}
 
+	// Try v2 expansion database if still not found
+	if !exists {
+		responses, exists = InsultExpansionV2[commandType]
+	}
+
 	// Fall back to generic if still not found
 	if !exists {
 		responses = ExpandedFallbackDatabase["generic"]

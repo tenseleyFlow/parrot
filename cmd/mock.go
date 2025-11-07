@@ -149,6 +149,30 @@ func detectCommandType(command string) string {
 	case "mysql", "psql", "postgres", "mongo", "mongosh", "redis-cli", "sqlite3":
 		return "database"
 
+	// Testing tools
+	case "jest", "vitest", "pytest", "mocha", "jasmine", "karma", "cypress", "playwright", "rspec", "phpunit", "junit":
+		return "testing"
+
+	// Security tools
+	case "nmap", "nikto", "burpsuite", "metasploit", "nessus", "wireshark", "tcpdump", "openssl", "gpg":
+		return "security"
+
+	// Performance tools
+	case "perf", "valgrind", "gprof", "strace", "ltrace", "top", "htop", "iotop":
+		return "performance"
+
+	// Cloud providers
+	case "aws", "gcloud", "az", "terraform", "pulumi", "cloudformation":
+		return "cloud"
+
+	// DevOps tools
+	case "ansible", "ansible-playbook", "puppet", "chef", "jenkins", "circleci", "travis":
+		return "devops"
+
+	// Monitoring tools
+	case "prometheus", "grafana", "datadog", "newrelic", "splunk", "elastic", "kibana", "logstash":
+		return "monitoring"
+
 	// Permission-related commands
 	case "chmod", "chown", "chgrp", "sudo":
 		return "permissions"
