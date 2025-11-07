@@ -29,13 +29,16 @@ function parrot_postexec --on-event fish_postexec
     end
 end
 
-# Setup hook (only show messages if not already initialized)
+# Setup hook (only show messages if not already initialized and in interactive mode)
 if not set -q PARROT_INITIALIZED
-    echo "🦜 Parrot is now watching your fish commands..."
+    # Only show messages in interactive shells
+    if status is-interactive
+        echo "🦜 Parrot is now watching your fish commands..."
 
-    # Show performance tip
-    if test "$PARROT_ASYNC" != "true"
-        echo "💡 Tip: Set PARROT_ASYNC=true to prevent terminal hangs on slow networks"
+        # Show performance tip
+        if test "$PARROT_ASYNC" != "true"
+            echo "💡 Tip: Set PARROT_ASYNC=true to prevent terminal hangs on slow networks"
+        end
     end
 
     # Mark as initialized for this shell session
