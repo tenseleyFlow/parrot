@@ -135,6 +135,20 @@ func ParseCommandContext(command string, commandType string, exitCode string) Sm
 	return ctx
 }
 
+// Global insult scorer and database (initialized once)
+var (
+	insultDB     *InsultDatabase
+	insultScorer *InsultScorer
+	insultHist   *InsultHistory
+)
+
+func init() {
+	// Initialize ML-inspired components on first use
+	insultDB = NewInsultDatabase()
+	insultScorer = NewInsultScorer(insultDB)
+	insultHist = NewInsultHistory(20) // Track last 20 insults
+}
+
 // GenerateSmartFallback generates a context-aware insult
 func GenerateSmartFallback(ctx SmartFallbackContext) string {
 	// Load user history for Tier 4 intelligence
@@ -145,7 +159,13 @@ func GenerateSmartFallback(ctx SmartFallbackContext) string {
 		history.RecordFailure(ctx)
 	}
 
-	// TIER 4 INTELLIGENCE - Highest Priority (ML-like Learning & Dynamic Generation)
+	// TIER 5 INTELLIGENCE - ML-Inspired Semantic Matching (HIGHEST PRIORITY)
+	// Uses error classification, intent parsing, and multi-factor scoring
+	if insult := generateMLInsult(ctx); insult != "" {
+		return insult
+	}
+
+	// TIER 4 INTELLIGENCE - Historical Learning & Dynamic Generation
 
 	// 1. Failure streak escalation (gets more brutal over time)
 	if history != nil && history.CurrentStreak >= 2 {
@@ -1517,4 +1537,57 @@ func getDependencyInsult(ctx SmartFallbackContext) string {
 	}
 
 	return ""
+}
+
+// ============================================================================
+// TIER 5 INTELLIGENCE - ML-Inspired Semantic Matching System
+// ============================================================================
+
+// generateMLInsult uses the intelligent scoring system to select the most relevant insult
+func generateMLInsult(ctx SmartFallbackContext) string {
+	// Determine personality from config (default to sarcastic)
+	personality := "sarcastic"
+	if config := LoadConfig(); config != nil && config.General.Personality != "" {
+		personality = config.General.Personality
+	}
+
+	// Use the ML-inspired scorer to get the best insult
+	scores := insultScorer.ScoreAndRank(&ctx, personality, 10)
+
+	if len(scores) == 0 {
+		return "" // Fall through to other tiers
+	}
+
+	// Get the top-ranked insult
+	topInsult := scores[0]
+
+	// Only use if score is above threshold (ensures quality)
+	if topInsult.TotalScore < 0.3 {
+		return "" // Score too low, fall through to other tiers
+	}
+
+	// Record in history to avoid repetition
+	insultHist.RecordInsult(topInsult.Insult.Text, ctx.FullCommand, topInsult.TotalScore)
+
+	// Update scorer's internal history
+	insultScorer.RecordShownInsult(topInsult.Insult.Text)
+
+	return topInsult.Insult.Text
+}
+
+// LoadConfig loads the parrot configuration (stub - integrate with actual config)
+func LoadConfig() *Config {
+	// This should integrate with the actual config loader
+	// For now, return nil to use defaults
+	return nil
+}
+
+// Config represents parrot configuration
+type Config struct {
+	General GeneralConfig
+}
+
+// GeneralConfig represents general configuration
+type GeneralConfig struct {
+	Personality string
 }
