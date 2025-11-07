@@ -137,9 +137,10 @@ func ParseCommandContext(command string, commandType string, exitCode string) Sm
 
 // Global insult scorer and database (initialized once)
 var (
-	insultDB     *InsultDatabase
-	insultScorer *InsultScorer
-	insultHist   *InsultHistory
+	insultDB        *InsultDatabase
+	insultScorer    *InsultScorer
+	insultHist      *InsultHistory
+	ensembleSystem  *EnsembleSystem
 )
 
 func init() {
@@ -147,6 +148,12 @@ func init() {
 	insultDB = NewInsultDatabase()
 	insultScorer = NewInsultScorer(insultDB)
 	insultHist = NewInsultHistory(20) // Track last 20 insults
+
+	// Initialize the ensemble system (combines TF-IDF, Markov, and tag-based scoring)
+	ensembleSystem = NewEnsembleSystem(insultDB, insultScorer, insultHist)
+
+	// Train the ensemble system on startup (async to avoid blocking)
+	go ensembleSystem.Train()
 }
 
 // GenerateSmartFallback generates a context-aware insult
@@ -1540,10 +1547,12 @@ func getDependencyInsult(ctx SmartFallbackContext) string {
 }
 
 // ============================================================================
-// TIER 5 INTELLIGENCE - ML-Inspired Semantic Matching System
+// TIER 5 INTELLIGENCE - Hybrid Ensemble ML System
 // ============================================================================
+// Combines TF-IDF semantic similarity, Markov chain generation, tag-based
+// scoring, and historical pattern matching with ensemble voting.
 
-// generateMLInsult uses the intelligent scoring system to select the most relevant insult
+// generateMLInsult uses the hybrid ensemble system to select/generate the best insult
 func generateMLInsult(ctx SmartFallbackContext) string {
 	// Determine personality from config (default to sarcastic)
 	personality := "sarcastic"
@@ -1551,28 +1560,20 @@ func generateMLInsult(ctx SmartFallbackContext) string {
 		personality = config.General.Personality
 	}
 
-	// Use the ML-inspired scorer to get the best insult
-	scores := insultScorer.ScoreAndRank(&ctx, personality, 10)
+	// Use the powerful ensemble system that combines:
+	// - TF-IDF semantic similarity (cosine similarity)
+	// - Tag-based matching (existing system)
+	// - Markov chain generation (novel insults)
+	// - Historical pattern learning
+	// - Novelty scoring (avoid repetition)
+	// - Weighted ensemble voting
+	insult := ensembleSystem.GenerateInsult(&ctx, personality)
 
-	if len(scores) == 0 {
+	if insult == "" {
 		return "" // Fall through to other tiers
 	}
 
-	// Get the top-ranked insult
-	topInsult := scores[0]
-
-	// Only use if score is above threshold (ensures quality)
-	if topInsult.TotalScore < 0.3 {
-		return "" // Score too low, fall through to other tiers
-	}
-
-	// Record in history to avoid repetition
-	insultHist.RecordInsult(topInsult.Insult.Text, ctx.FullCommand, topInsult.TotalScore)
-
-	// Update scorer's internal history
-	insultScorer.RecordShownInsult(topInsult.Insult.Text)
-
-	return topInsult.Insult.Text
+	return insult
 }
 
 // LoadConfig loads the parrot configuration (stub - integrate with actual config)
