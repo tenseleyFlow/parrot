@@ -1,7 +1,7 @@
 %define debug_package %{nil}
 
 Name:           parrot
-Version:        1.4.0
+Version:        1.5.0
 Release:        1%{?dist}
 Summary:        Intelligent roasts of failed commands
 
@@ -107,6 +107,11 @@ fi
 %{_docdir}/%{name}/
 
 %changelog
+* Wed Nov 06 2024 mfw <espadonne@outlook.com> - 1.5.0-1
+- Expansion V2: 1000 MORE INSULTS! Total: 3,639 insults
+- Ultimate Roast Database: 1,220+ new insults across 26 categories
+- Massively expanded fallback intelligence with contextual awareness
+
 * Wed Nov 06 2024 mfw <espadonne@outlook.com> - 1.4.0-1
 - Tier 4 Intelligence: ML-like learning and dynamic generation capabilities
 - Tier 3 Intelligence: LLM-like context awareness for smarter responses
