@@ -109,7 +109,7 @@ fi
 %{_docdir}/%{name}/
 
 %changelog
-* Thu Nov 07 2025 mfw <espadonne@outlook.com> - 1.6.1-1
+* Fri Nov 07 2025 mfw <espadonne@outlook.com> - 1.6.1-1
 - Fix: Install parrot-hook.fish for fish shell support
 - Fix: Hook script not found error on fish shell
 - Add Homebrew caveats for better installation experience
