@@ -1,7 +1,7 @@
 %define debug_package %{nil}
 
 Name:           parrot
-Version:        1.5.0
+Version:        1.5.1
 Release:        1%{?dist}
 Summary:        Intelligent roasts of failed commands
 
@@ -107,6 +107,13 @@ fi
 %{_docdir}/%{name}/
 
 %changelog
+* Wed Nov 06 2024 mfw <espadonne@outlook.com> - 1.5.1-1
+- Expansion V6: UNSTOPPABLE 8-category blitz - 314 NEW insults!
+- Expansion V5: EPIC 10-category expansion - 385 NEW insults!
+- Expansion V4: MASSIVE category expansion - 285 NEW insults!
+- Expansion V3: 260 NEW brutal insults targeting weak points
+- Total: 1,244 new insults added! Database now at 4,883 total insults
+
 * Wed Nov 06 2024 mfw <espadonne@outlook.com> - 1.5.0-1
 - Expansion V2: 1000 MORE INSULTS! Total: 3,639 insults
 - Ultimate Roast Database: 1,220+ new insults across 26 categories
