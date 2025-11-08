@@ -141,6 +141,12 @@ var (
 	insultScorer    *InsultScorer
 	insultHist      *InsultHistory
 	ensembleSystem  *EnsembleSystem
+
+	// TIER 6 INTELLIGENCE - Novel ML-inspired systems
+	contextualGraph     *ContextualMemoryGraph
+	adversarialGen      *AdversarialInsultGenerator
+	editDistanceMatcher *EditDistanceMatcher
+	embeddingEngine     *EmbeddingEngine
 )
 
 func init() {
@@ -154,6 +160,21 @@ func init() {
 
 	// Train the ensemble system on startup (async to avoid blocking)
 	go ensembleSystem.Train()
+
+	// TIER 6 INTELLIGENCE - Initialize novel systems
+	contextualGraph = NewContextualMemoryGraph()
+	adversarialGen = NewAdversarialInsultGenerator(insultDB, ensembleSystem.markovGen)
+	editDistanceMatcher = NewEditDistanceMatcher()
+	embeddingEngine = NewEmbeddingEngine()
+
+	// Periodically apply decay to keep system fresh
+	go func() {
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			contextualGraph.ApplyDecay()
+		}
+	}()
 }
 
 // GenerateSmartFallback generates a context-aware insult
@@ -166,9 +187,54 @@ func GenerateSmartFallback(ctx SmartFallbackContext) string {
 		history.RecordFailure(ctx)
 	}
 
-	// TIER 5 INTELLIGENCE - ML-Inspired Semantic Matching (HIGHEST PRIORITY)
+	// TIER 6 INTELLIGENCE - Novel ML-Inspired Systems (HIGHEST PRIORITY)
+	// These are cutting-edge techniques never before seen in CLI tools
+
+	// 1. Contextual Memory Graph - Track failure relationships
+	contextID := contextualGraph.RecordContext(&ctx)
+
+	// Check for transition-specific insults (failure sequences)
+	if transitionInsult := contextualGraph.GetTransitionInsult(contextualGraph.previousContext, contextID); transitionInsult != "" {
+		// Record use for RL
+		contextualGraph.RecordInsultUse(contextID, transitionInsult)
+		editDistanceMatcher.RecordCommand(&ctx, transitionInsult, 0.8)
+		return transitionInsult
+	}
+
+	// 2. Adversarial Generation System (GAN-inspired)
+	// Generator vs. Critic competing for best insult
+	personality := "sarcastic"
+	if config := LoadConfig(); config != nil && config.General.Personality != "" {
+		personality = config.General.Personality
+	}
+
+	if adversarialInsult := adversarialGen.Generate(&ctx, personality); adversarialInsult != "" {
+		// Record for learning
+		contextualGraph.AddInsultToPool(contextID, adversarialInsult, 0.9)
+		contextualGraph.RecordInsultUse(contextID, adversarialInsult)
+		editDistanceMatcher.RecordCommand(&ctx, adversarialInsult, 0.75)
+		return adversarialInsult
+	}
+
+	// 3. Edit Distance Matcher - Adapt insults from similar past failures
+	if adaptedInsult := editDistanceMatcher.GetAdaptedInsult(&ctx); adaptedInsult != "" {
+		contextualGraph.AddInsultToPool(contextID, adaptedInsult, 0.85)
+		contextualGraph.RecordInsultUse(contextID, adaptedInsult)
+		return adaptedInsult
+	}
+
+	// 4. Contextual Graph Memory - Use specialized insult pool
+	if graphInsult := contextualGraph.GetContextualInsult(contextID); graphInsult != "" {
+		contextualGraph.RecordInsultUse(contextID, graphInsult)
+		return graphInsult
+	}
+
+	// TIER 5 INTELLIGENCE - ML-Inspired Semantic Matching
 	// Uses error classification, intent parsing, and multi-factor scoring
 	if insult := generateMLInsult(ctx); insult != "" {
+		// Feed back to Tier 6 systems for learning
+		contextualGraph.AddInsultToPool(contextID, insult, 0.7)
+		editDistanceMatcher.RecordCommand(&ctx, insult, 0.7)
 		return insult
 	}
 
