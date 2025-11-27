@@ -1,5 +1,7 @@
 package llm
 
+import "time"
+
 // ExpandedFallbackDatabase contains hundreds of brutal, wry insults organized by command type
 // This database is used when LLM backends are unavailable to provide instant feedback
 var ExpandedFallbackDatabase = map[string][]string{
@@ -2916,12 +2918,19 @@ func GetExpandedFallback(commandType string, command string) string {
 		responses = ExpandedFallbackDatabase["generic"]
 	}
 
-	// Improved pseudo-random selection using command text for variation
+	// Improved pseudo-random selection using command text + time for variation
+	// Add time-based entropy to provide variety over time while maintaining
+	// some determinism within short timeframes (10-second buckets)
+	timeBucket := time.Now().Unix() / 10 // 10-second buckets
+
 	hash := 0
 	fullText := commandType + command
 	for _, char := range fullText {
 		hash = hash*31 + int(char)
 	}
+	// Mix in time-based entropy
+	hash = hash*31 + int(timeBucket)
+
 	if hash < 0 {
 		hash = -hash
 	}
