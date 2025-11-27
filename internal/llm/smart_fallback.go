@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -1279,16 +1280,26 @@ func getProjectTypeInsult(ctx SmartFallbackContext) string {
 	return ""
 }
 
-// selectInsult picks an insult using pseudo-random selection
+// selectInsult picks an insult using pseudo-random selection with time-based entropy
+// This adds variety over time while maintaining some determinism within short timeframes
 func selectInsult(insults []string, seed string) string {
 	if len(insults) == 0 {
 		return ""
 	}
 
+	// Add time-based entropy: same command gets different insults over time
+	// Using 10-second buckets means same command within ~10 seconds gets same insult,
+	// but after that, the insult changes. This provides both consistency and variety.
+	timeBucket := time.Now().Unix() / 10 // 10-second buckets
+
 	hash := 0
+	// Hash the seed (command)
 	for _, char := range seed {
 		hash = hash*31 + int(char)
 	}
+	// Mix in time-based entropy
+	hash = hash*31 + int(timeBucket)
+
 	if hash < 0 {
 		hash = -hash
 	}
@@ -1401,7 +1412,10 @@ func detectErrorPattern(exitCode int, command string) string {
 }
 
 // failureTracker stores recent command failures (simple in-process tracking)
-var failureTracker = make(map[string]int)
+var (
+	failureTracker      = make(map[string]int)
+	failureTrackerMutex sync.Mutex
+)
 
 // trackFailure tracks command failures and detects repeats
 func trackFailure(command string) bool {
@@ -1411,6 +1425,10 @@ func trackFailure(command string) bool {
 		hash = hash*31 + int(char)
 	}
 	cmdHash := strconv.Itoa(hash)
+
+	// Thread-safe map access
+	failureTrackerMutex.Lock()
+	defer failureTrackerMutex.Unlock()
 
 	// Increment failure count
 	failureTracker[cmdHash]++
