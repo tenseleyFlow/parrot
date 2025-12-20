@@ -3,11 +3,13 @@ package llm
 import (
 	"math/rand"
 	"strings"
+	"sync"
 	"time"
 )
 
 // MarkovGenerator generates novel insults using Markov chains
 type MarkovGenerator struct {
+	mu          sync.RWMutex
 	chains      map[string]map[string]int // state -> next_word -> count
 	starters    []string                   // possible starting words
 	order       int                        // n-gram order (2 = bigram)
@@ -30,13 +32,16 @@ func NewMarkovGenerator(order int) *MarkovGenerator {
 
 // Train trains the Markov chain on a corpus of insults
 func (mg *MarkovGenerator) Train(insults []string) {
+	mg.mu.Lock()
+	defer mg.mu.Unlock()
+
 	for _, insult := range insults {
-		mg.trainOnText(insult)
+		mg.trainOnTextUnlocked(insult)
 	}
 }
 
-// trainOnText trains on a single text
-func (mg *MarkovGenerator) trainOnText(text string) {
+// trainOnTextUnlocked trains on a single text (caller must hold lock)
+func (mg *MarkovGenerator) trainOnTextUnlocked(text string) {
 	words := mg.tokenize(text)
 	if len(words) < mg.order+1 {
 		return
@@ -91,6 +96,9 @@ func (mg *MarkovGenerator) tokenize(text string) []string {
 
 // Generate generates a novel insult
 func (mg *MarkovGenerator) Generate() string {
+	mg.mu.RLock()
+	defer mg.mu.RUnlock()
+
 	if len(mg.starters) == 0 || len(mg.chains) == 0 {
 		return "" // Not trained yet
 	}
@@ -184,6 +192,9 @@ func (mg *MarkovGenerator) isPunctuation(word string) bool {
 
 // GenerateContextual generates an insult with context hints
 func (mg *MarkovGenerator) GenerateContextual(seedWords []string) string {
+	mg.mu.RLock()
+	defer mg.mu.RUnlock()
+
 	if len(mg.chains) == 0 {
 		return ""
 	}
