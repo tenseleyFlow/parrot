@@ -14,9 +14,10 @@ function parrot_check
 end
 
 # Function called after each command completes
+# Note: fish_postexec receives the command as $argv[1]
 function parrot_postexec --on-event fish_postexec
     set -l exit_code $status
-    set -l last_cmd (history max 1)
+    set -l last_cmd $argv[1]
 
     # Only mock if command failed and we have a command
     if test $exit_code -ne 0; and test -n "$last_cmd"; and parrot_check
