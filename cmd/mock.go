@@ -17,7 +17,7 @@ import (
 
 var rootCmd = &cobra.Command{
 	Use:     "parrot",
-	Version: "1.7.1",
+	Version: "1.8.2",
 	Short:   "A sassy CLI that mocks your failed commands",
 	Long:    "Parrot listens for failed commands and responds with intelligent insults and mockery.",
 	Run: func(cmd *cobra.Command, args []string) {
