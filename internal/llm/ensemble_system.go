@@ -3,10 +3,12 @@ package llm
 import (
 	"math"
 	"sort"
+	"sync"
 )
 
 // EnsembleSystem combines multiple ML techniques for optimal insult selection
 type EnsembleSystem struct {
+	mu               sync.RWMutex
 	tfidfEngine      *TFIDFEngine
 	bm25Engine       *BM25Engine  // NEW: Industry-standard BM25 ranking
 	markovGen        *MarkovGenerator
@@ -72,9 +74,13 @@ func NewEnsembleSystem(db *InsultDatabase, scorer *InsultScorer, hist *InsultHis
 
 // Train trains all ML components on the insult database
 func (es *EnsembleSystem) Train() {
+	es.mu.Lock()
 	if es.trained {
+		es.mu.Unlock()
 		return // Already trained
 	}
+	es.trained = true // Mark as training to prevent concurrent attempts
+	es.mu.Unlock()
 
 	// Collect all insult texts
 	insults := make([]string, 0, len(es.database.Insults))
@@ -90,8 +96,6 @@ func (es *EnsembleSystem) Train() {
 
 	// Train Markov generator
 	es.markovGen.Train(insults)
-
-	es.trained = true
 }
 
 // GenerateInsult generates the best possible insult using ensemble methods
@@ -100,7 +104,10 @@ func (es *EnsembleSystem) GenerateInsult(
 	personality string,
 ) string {
 	// Ensure training is done
-	if !es.trained {
+	es.mu.RLock()
+	trained := es.trained
+	es.mu.RUnlock()
+	if !trained {
 		es.Train()
 	}
 

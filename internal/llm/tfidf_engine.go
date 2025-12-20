@@ -3,11 +3,13 @@ package llm
 import (
 	"math"
 	"strings"
+	"sync"
 	"unicode"
 )
 
 // TFIDFEngine implements semantic similarity using TF-IDF vectors
 type TFIDFEngine struct {
+	mu             sync.RWMutex
 	vocabulary     map[string]int    // word -> index
 	idf            map[string]float64 // word -> inverse document frequency
 	documentCount  int
@@ -32,6 +34,9 @@ func NewTFIDFEngine() *TFIDFEngine {
 
 // BuildCorpus builds the TF-IDF corpus from a collection of documents
 func (engine *TFIDFEngine) BuildCorpus(documents []string) {
+	engine.mu.Lock()
+	defer engine.mu.Unlock()
+
 	// First pass: build vocabulary and count document frequencies
 	documentFreq := make(map[string]int)
 
@@ -113,6 +118,9 @@ func (engine *TFIDFEngine) tokenize(text string) []string {
 
 // Vectorize converts text to TF-IDF vector
 func (engine *TFIDFEngine) Vectorize(text string) map[string]float64 {
+	engine.mu.RLock()
+	defer engine.mu.RUnlock()
+
 	vector := make(map[string]float64)
 	tokens := engine.extractNGrams(text)
 

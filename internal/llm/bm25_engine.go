@@ -2,11 +2,13 @@ package llm
 
 import (
 	"math"
+	"sync"
 )
 
 // BM25Engine implements BM25 ranking algorithm (superior to basic TF-IDF)
 // BM25 is the industry standard for text search and ranking
 type BM25Engine struct {
+	mu            sync.RWMutex
 	vocabulary    map[string]int      // word -> index
 	idf           map[string]float64  // word -> inverse document frequency
 	docLengths    []int               // document lengths
@@ -44,6 +46,9 @@ func (engine *BM25Engine) SetParameters(k1, b float64) {
 
 // BuildCorpus builds the BM25 corpus from documents
 func (engine *BM25Engine) BuildCorpus(documents []string) {
+	engine.mu.Lock()
+	defer engine.mu.Unlock()
+
 	// First pass: extract terms and calculate document frequencies
 	documentFreq := make(map[string]int)
 	engine.docLengths = make([]int, len(documents))
@@ -128,6 +133,9 @@ func (engine *BM25Engine) tokenize(text string) []string {
 
 // Score calculates BM25 score for a query against a document
 func (engine *BM25Engine) Score(query string, document string) float64 {
+	engine.mu.RLock()
+	defer engine.mu.RUnlock()
+
 	queryTerms := engine.extractNGrams(query)
 	docTerms := engine.extractNGrams(document)
 
