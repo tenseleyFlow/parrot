@@ -17,9 +17,18 @@ type OllamaClient struct {
 }
 
 type GenerateRequest struct {
-	Model  string `json:"model"`
-	Prompt string `json:"prompt"`
-	Stream bool   `json:"stream"`
+	Model     string            `json:"model"`
+	Prompt    string            `json:"prompt"`
+	Stream    bool              `json:"stream"`
+	KeepAlive string            `json:"keep_alive,omitempty"`
+	Options   *GenerateOptions  `json:"options,omitempty"`
+}
+
+// GenerateOptions controls Ollama generation behavior for speed optimization
+type GenerateOptions struct {
+	NumPredict  int     `json:"num_predict,omitempty"`  // Max tokens to generate (60 is plenty for insults)
+	NumCtx      int     `json:"num_ctx,omitempty"`      // Context window size (512 is enough for small prompts)
+	Temperature float64 `json:"temperature,omitempty"`  // Creativity (0.8 for variety)
 }
 
 type GenerateResponse struct {
@@ -51,9 +60,15 @@ func (c *OllamaClient) Generate(ctx context.Context, prompt string) (string, err
 	}
 
 	req := GenerateRequest{
-		Model:  c.Model,
-		Prompt: prompt,
-		Stream: false,
+		Model:     c.Model,
+		Prompt:    prompt,
+		Stream:    false,
+		KeepAlive: "10m", // Keep model loaded for 10 minutes to avoid cold starts
+		Options: &GenerateOptions{
+			NumPredict:  60,  // Limit output tokens (insults are short)
+			NumCtx:      512, // Small context window (prompts are ~500 chars)
+			Temperature: 0.8, // Good creativity for variety
+		},
 	}
 
 	reqBody, err := json.Marshal(req)
@@ -120,9 +135,14 @@ func (c *OllamaClient) WarmupModel() error {
 	}
 
 	req := GenerateRequest{
-		Model:  c.Model,
-		Prompt: "test", // Minimal prompt to load model
-		Stream: false,
+		Model:     c.Model,
+		Prompt:    "Say OK", // Minimal prompt to load model
+		Stream:    false,
+		KeepAlive: "10m",
+		Options: &GenerateOptions{
+			NumPredict: 5,   // Minimal output for warmup
+			NumCtx:     256, // Minimal context
+		},
 	}
 
 	reqBody, err := json.Marshal(req)

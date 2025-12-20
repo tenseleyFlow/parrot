@@ -197,8 +197,9 @@ func generateSmartResponse(cmdType, command, exitCode string) (string, *config.C
 	// Build context-aware prompt with personality
 	prompt := prompts.BuildPrompt(cmdType, command, exitCode, cfg.General.Personality)
 	
-	// Use a reasonable timeout for LLM responses (10 seconds max)
-	maxTimeout := 10 * time.Second
+	// Use a reasonable timeout for LLM responses (6 seconds max)
+	// With optimized Ollama options, responses should be under 2 seconds when warm
+	maxTimeout := 6 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), maxTimeout)
 	defer cancel()
 	
