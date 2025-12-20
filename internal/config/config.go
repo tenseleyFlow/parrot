@@ -60,7 +60,7 @@ func DefaultConfig() *Config {
 			Provider: "ollama",
 			Endpoint: "http://127.0.0.1:11434",
 			Model:    "llama3.2:3b",
-			Timeout:  15,  // Adequate time for local LLM processing (increased for slower systems)
+			Timeout:  5,  // 5 seconds with optimized generation options should be plenty
 		},
 		General: GeneralConfig{
 			Personality:  "savage",
