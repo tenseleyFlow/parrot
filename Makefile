@@ -3,7 +3,7 @@
 
 # Project configuration
 PROJECT_NAME = parrot
-VERSION = 1.8.1
+VERSION = 1.8.2
 TARGET = parrot
 
 # Go configuration
