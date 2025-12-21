@@ -283,7 +283,7 @@ func GenerateStreakEscalation(streak int, ctx SmartFallbackContext) string {
 		}
 	} else if streak >= 3 {
 		templates = []string{
-			fmt.Sprintf("Third failure in a row. Three strikes: You're out.", streak),
+			fmt.Sprintf("Failure #%d in a row. Three strikes: You're out.", streak),
 			fmt.Sprintf("%d consecutive fails. Trying the same thing expecting different results?", streak),
 			fmt.Sprintf("Failure #%d. Pattern detected: You.", streak),
 			fmt.Sprintf("%d in a row. Maybe read the docs this time?", streak),

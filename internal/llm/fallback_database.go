@@ -2913,6 +2913,11 @@ func GetExpandedFallback(commandType string, command string) string {
 		responses, exists = InsultExpansionV2[commandType]
 	}
 
+	// Try v3 expansion database (kubernetes, terraform, ai_ml, http_errors, cloud)
+	if !exists {
+		responses, exists = InsultExpansionV3[commandType]
+	}
+
 	// Fall back to generic if still not found
 	if !exists {
 		responses = ExpandedFallbackDatabase["generic"]

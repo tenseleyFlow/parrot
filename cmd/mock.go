@@ -32,6 +32,9 @@ func Execute() {
 	}
 }
 
+// CLI flags
+var spicyMode bool
+
 var mockCmd = &cobra.Command{
 	Use:   "mock [command] [exit_code]",
 	Short: "Mock a failed command",
@@ -42,6 +45,9 @@ var mockCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(mockCmd)
+
+	// Add --spicy flag for quality mode (default is snappy/fast)
+	mockCmd.Flags().BoolVar(&spicyMode, "spicy", false, "Use spicy mode (richer responses, slightly slower)")
 }
 
 func mockCommand(cmd *cobra.Command, args []string) {
@@ -95,8 +101,8 @@ func detectCommandType(command string) string {
 		return "kubernetes"
 
 	// HTTP/Network
-	case "curl", "wget", "http", "https":
-		return "http"
+	case "curl", "wget", "http", "https", "httpie":
+		return "http_errors"
 
 	// SSH/Remote
 	case "ssh", "scp", "sftp", "rsync":
@@ -110,8 +116,16 @@ func detectCommandType(command string) string {
 	case "cd", "pushd", "popd":
 		return "navigation"
 
-	// Python
+	// Python - check for ML frameworks first
 	case "python", "python3", "pip", "pip3", "poetry", "pipenv", "conda":
+		// Check if this is an AI/ML command
+		if strings.Contains(command, "torch") || strings.Contains(command, "tensorflow") ||
+			strings.Contains(command, "keras") || strings.Contains(command, "sklearn") ||
+			strings.Contains(command, "pytorch") || strings.Contains(command, "transformers") ||
+			strings.Contains(command, "cuda") || strings.Contains(command, "gpu") ||
+			strings.Contains(command, "train") || strings.Contains(command, "model") {
+			return "ai_ml"
+		}
 		return "python_expanded"
 
 	// Rust
@@ -161,8 +175,16 @@ func detectCommandType(command string) string {
 	case "perf", "valgrind", "gprof", "strace", "ltrace", "top", "htop", "iotop":
 		return "performance"
 
+	// AI/ML tools
+	case "nvidia-smi", "nvcc", "tensorboard", "mlflow", "wandb", "jupyter", "ipython":
+		return "ai_ml"
+
+	// Terraform/IaC
+	case "terraform", "pulumi", "cdktf", "terragrunt":
+		return "terraform"
+
 	// Cloud providers
-	case "aws", "gcloud", "az", "terraform", "pulumi", "cloudformation":
+	case "aws", "gcloud", "az", "cloudformation", "cdk":
 		return "cloud"
 
 	// DevOps tools
@@ -190,16 +212,24 @@ func generateSmartResponse(cmdType, command, exitCode string) (string, *config.C
 		defaultCfg := config.DefaultConfig()
 		return getFallbackResponse(cmdType), defaultCfg
 	}
-	
+
+	// Override mode if --spicy flag is set
+	if spicyMode {
+		cfg.General.GenerationMode = "spicy"
+	}
+
 	// Initialize LLM manager
 	manager := llm.NewLLMManager(cfg)
-	
+
 	// Build context-aware prompt with personality
 	prompt := prompts.BuildPrompt(cmdType, command, exitCode, cfg.General.Personality)
-	
-	// Use a reasonable timeout for LLM responses (6 seconds max)
-	// With optimized Ollama options, responses should be under 2 seconds when warm
-	maxTimeout := 6 * time.Second
+
+	// Set timeout based on generation mode
+	// Snappy: 4s max (3s LLM + 1s buffer), Spicy: 6s max (5s LLM + 1s buffer)
+	maxTimeout := 4 * time.Second
+	if cfg.General.GenerationMode == "spicy" {
+		maxTimeout = 6 * time.Second
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), maxTimeout)
 	defer cancel()
 	
