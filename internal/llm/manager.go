@@ -10,9 +10,10 @@ import (
 )
 
 type LLMManager struct {
-	config     *config.Config
-	apiClient  *APIClient
+	config       *config.Config
+	apiClient    *APIClient
 	ollamaClient *OllamaClient
+	cache        *ResponseCache
 }
 
 type Backend string
@@ -23,9 +24,18 @@ const (
 	BackendFallback Backend = "fallback"
 )
 
+// getLocalTimeout returns the appropriate timeout based on generation mode
+func getLocalTimeout(cfg *config.Config) time.Duration {
+	if cfg.General.GenerationMode == "spicy" {
+		return 5 * time.Second // Patient timeout for quality mode
+	}
+	return 3 * time.Second // Snappy timeout (raw Ollama ~1.4s, needs headroom)
+}
+
 func NewLLMManager(cfg *config.Config) *LLMManager {
 	manager := &LLMManager{
 		config: cfg,
+		cache:  GetResponseCache(),
 	}
 	
 	// Initialize API client if enabled
@@ -44,7 +54,10 @@ func NewLLMManager(cfg *config.Config) *LLMManager {
 			cfg.Local.Endpoint,
 			cfg.Local.Model,
 		)
-		
+
+		// Set generation mode (snappy = fast, spicy = quality)
+		manager.ollamaClient.SetMode(cfg.General.GenerationMode)
+
 		// Warm up the model in the background for better performance
 		if manager.ollamaClient.IsAvailable() {
 			go func() {
@@ -96,14 +109,14 @@ func (m *LLMManager) Generate(ctx context.Context, prompt string, commandType st
 	// 2. Try local Ollama (if available)
 	if m.ollamaClient != nil && m.config.Local.Enabled {
 		if m.config.General.Debug {
-			fmt.Printf("🔍 Trying local backend...\n")
+			fmt.Printf("🔍 Trying local backend (%s mode)...\n", m.config.General.GenerationMode)
 		}
-		
-		// Create timeout context for local calls
-		timeoutDuration := time.Duration(m.config.Local.Timeout) * time.Second
+
+		// Create timeout context based on generation mode
+		timeoutDuration := getLocalTimeout(m.config)
 		localCtx, cancel := context.WithTimeout(ctx, timeoutDuration)
 		defer cancel()
-		
+
 		response, err := m.ollamaClient.Generate(localCtx, prompt)
 		if m.config.General.Debug {
 			fmt.Printf("🐛 Raw Ollama response: '%s', error: %v\n", response, err)
@@ -115,12 +128,12 @@ func (m *LLMManager) Generate(ctx context.Context, prompt string, commandType st
 			}
 			return response, BackendLocal
 		}
-		
+
 		if m.config.General.Debug {
 			fmt.Printf("❌ Local backend failed: %v\n", err)
 		}
 	}
-	
+
 	// 3. Fallback to hardcoded responses
 	if m.config.General.Debug {
 		fmt.Printf("🔄 Using fallback backend\n")
@@ -133,6 +146,16 @@ func (m *LLMManager) GenerateWithContext(ctx context.Context, prompt string, com
 	// If fallback mode is enabled, skip LLM backends
 	if m.config.General.FallbackMode {
 		return m.generateFallback(commandType, fullCommand, exitCode), BackendFallback
+	}
+
+	// Check cache first for repeated failures
+	if m.cache != nil {
+		if cached, found := m.cache.Get(fullCommand, commandType, exitCode, m.config.General.GenerationMode); found {
+			if m.config.General.Debug {
+				fmt.Printf("⚡ Cache hit!\n")
+			}
+			return cached, BackendLocal // Treat cache as local backend
+		}
 	}
 
 	// Try backends in priority order: API -> Local -> Fallback
@@ -154,6 +177,10 @@ func (m *LLMManager) GenerateWithContext(ctx context.Context, prompt string, com
 			if m.config.General.Debug {
 				fmt.Printf("✅ API backend succeeded\n")
 			}
+			// Cache successful response
+			if m.cache != nil {
+				m.cache.Set(fullCommand, commandType, exitCode, m.config.General.GenerationMode, response)
+			}
 			return response, BackendAPI
 		}
 
@@ -165,11 +192,11 @@ func (m *LLMManager) GenerateWithContext(ctx context.Context, prompt string, com
 	// 2. Try local Ollama (if available)
 	if m.ollamaClient != nil && m.config.Local.Enabled {
 		if m.config.General.Debug {
-			fmt.Printf("🔍 Trying local backend...\n")
+			fmt.Printf("🔍 Trying local backend (%s mode)...\n", m.config.General.GenerationMode)
 		}
 
-		// Create timeout context for local calls
-		timeoutDuration := time.Duration(m.config.Local.Timeout) * time.Second
+		// Create timeout context based on generation mode
+		timeoutDuration := getLocalTimeout(m.config)
 		localCtx, cancel := context.WithTimeout(ctx, timeoutDuration)
 		defer cancel()
 
@@ -181,6 +208,10 @@ func (m *LLMManager) GenerateWithContext(ctx context.Context, prompt string, com
 			response = m.cleanResponse(response)
 			if m.config.General.Debug {
 				fmt.Printf("✅ Local backend succeeded with: '%s'\n", response)
+			}
+			// Cache successful response
+			if m.cache != nil {
+				m.cache.Set(fullCommand, commandType, exitCode, m.config.General.GenerationMode, response)
 			}
 			return response, BackendLocal
 		}

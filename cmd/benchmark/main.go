@@ -7,7 +7,7 @@ import (
 
 func main() {
 	fmt.Println("Parrot Insult System Benchmark")
-	fmt.Println("================================\n")
+	fmt.Println("================================")
 
 	// Create benchmark
 	benchmark := llm.NewBenchmark()
@@ -22,7 +22,7 @@ func main() {
 
 	fmt.Println("Training ensemble system...")
 	ensemble.Train()
-	fmt.Println("Training complete!\n")
+	fmt.Println("Training complete!")
 
 	// Run benchmark
 	fmt.Println("Running benchmark...")
@@ -34,7 +34,7 @@ func main() {
 
 	// Print detailed sample results
 	fmt.Println("\nDetailed Sample Results:")
-	fmt.Println("========================\n")
+	fmt.Println("========================")
 
 	for i, score := range results.DetailedScores {
 		if i >= 10 { // Show first 10

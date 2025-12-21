@@ -37,11 +37,12 @@ type LocalConfig struct {
 }
 
 type GeneralConfig struct {
-	Personality  string `toml:"personality"`   // "savage", "sarcastic", "mild"
-	FallbackMode bool   `toml:"fallback_mode"` // Use hardcoded responses only
-	Debug        bool   `toml:"debug"`         // Debug logging
-	Colors       bool   `toml:"colors"`        // Enable colored output
-	Enhanced     bool   `toml:"enhanced"`      // Enhanced formatting with borders/emphasis
+	Personality    string `toml:"personality"`     // "savage", "sarcastic", "mild"
+	GenerationMode string `toml:"generation_mode"` // "snappy" (fast) or "spicy" (quality)
+	FallbackMode   bool   `toml:"fallback_mode"`   // Use hardcoded responses only
+	Debug          bool   `toml:"debug"`           // Debug logging
+	Colors         bool   `toml:"colors"`          // Enable colored output
+	Enhanced       bool   `toml:"enhanced"`        // Enhanced formatting with borders/emphasis
 }
 
 // Default configuration
@@ -63,11 +64,12 @@ func DefaultConfig() *Config {
 			Timeout:  5,  // 5 seconds with optimized generation options should be plenty
 		},
 		General: GeneralConfig{
-			Personality:  "savage",
-			FallbackMode: false,
-			Debug:        false,
-			Colors:       true,
-			Enhanced:     false,
+			Personality:    "savage",
+			GenerationMode: "snappy", // Default to fast mode
+			FallbackMode:   false,
+			Debug:          false,
+			Colors:         true,
+			Enhanced:       false,
 		},
 	}
 }
@@ -148,6 +150,9 @@ func loadFromEnv(config *Config) {
 	// General configuration
 	if personality := os.Getenv("PARROT_PERSONALITY"); personality != "" {
 		config.General.Personality = personality
+	}
+	if mode := os.Getenv("PARROT_MODE"); mode != "" {
+		config.General.GenerationMode = mode
 	}
 	if os.Getenv("PARROT_FALLBACK_ONLY") == "true" {
 		config.General.FallbackMode = true

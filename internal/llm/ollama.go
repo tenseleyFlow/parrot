@@ -13,6 +13,7 @@ import (
 type OllamaClient struct {
 	BaseURL string
 	Model   string
+	Mode    string // "snappy" (fast) or "spicy" (quality)
 	client  *http.Client
 }
 
@@ -43,13 +44,39 @@ func NewOllamaClient(baseURL, model string) *OllamaClient {
 	if model == "" {
 		model = "llama3.2:3b"
 	}
-	
+
 	return &OllamaClient{
 		BaseURL: baseURL,
 		Model:   model,
+		Mode:    "snappy", // Default to fast mode
 		client: &http.Client{
 			Timeout: 60 * time.Second, // Maximum timeout; actual timeout controlled by context
 		},
+	}
+}
+
+// SetMode sets the generation mode ("snappy" for speed, "spicy" for quality)
+func (c *OllamaClient) SetMode(mode string) {
+	if mode == "spicy" || mode == "snappy" {
+		c.Mode = mode
+	}
+}
+
+// getOptionsForMode returns optimized generation options based on mode
+func (c *OllamaClient) getOptionsForMode() *GenerateOptions {
+	if c.Mode == "spicy" {
+		// Spicy mode: richer responses, more creative, willing to wait
+		return &GenerateOptions{
+			NumPredict:  80,   // Longer responses
+			NumCtx:      1024, // Rich context window
+			Temperature: 0.85, // More creative
+		}
+	}
+	// Snappy mode (default): fast and punchy
+	return &GenerateOptions{
+		NumPredict:  40,  // Short and punchy
+		NumCtx:      256, // Minimal context
+		Temperature: 0.6, // Faster convergence
 	}
 }
 
@@ -59,16 +86,18 @@ func (c *OllamaClient) Generate(ctx context.Context, prompt string) (string, err
 		return "", fmt.Errorf("invalid base URL: %w", err)
 	}
 
+	// Use mode-specific generation options
+	keepAlive := "5m"
+	if c.Mode == "spicy" {
+		keepAlive = "15m" // Keep model warm longer for quality mode
+	}
+
 	req := GenerateRequest{
 		Model:     c.Model,
 		Prompt:    prompt,
 		Stream:    false,
-		KeepAlive: "10m", // Keep model loaded for 10 minutes to avoid cold starts
-		Options: &GenerateOptions{
-			NumPredict:  60,  // Limit output tokens (insults are short)
-			NumCtx:      512, // Small context window (prompts are ~500 chars)
-			Temperature: 0.8, // Good creativity for variety
-		},
+		KeepAlive: keepAlive,
+		Options:   c.getOptionsForMode(),
 	}
 
 	reqBody, err := json.Marshal(req)

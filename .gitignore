@@ -1,3 +1,5 @@
 dist/
 rpmbuild/
 parrot
+CLAUDE.md
+parrot-race
