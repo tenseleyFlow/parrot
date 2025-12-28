@@ -56,11 +56,27 @@ func installHooks(cmd *cobra.Command, args []string) {
 		hookFile = "parrot-hook.sh"
 	}
 
-	possiblePaths := []string{
-		filepath.Join("/usr/share/parrot", hookFile),       // RPM installation
-		filepath.Join("/usr/local/share/parrot", hookFile), // Manual installation
-		filepath.Join(".", hookFile),                       // Development
+	// Build list of possible paths, starting with most specific
+	possiblePaths := []string{}
+
+	// Check relative to executable (works for NixOS, Homebrew, and other non-FHS systems)
+	if exePath, err := os.Executable(); err == nil {
+		// Resolve symlinks to get actual binary location
+		if realPath, err := filepath.EvalSymlinks(exePath); err == nil {
+			exePath = realPath
+		}
+		exeDir := filepath.Dir(exePath)
+		// Try ../share/parrot/ relative to bin directory
+		possiblePaths = append(possiblePaths, filepath.Join(exeDir, "..", "share", "parrot", hookFile))
 	}
+
+	// Standard FHS and user paths
+	possiblePaths = append(possiblePaths,
+		filepath.Join("/usr/share/parrot", hookFile),            // RPM/system installation
+		filepath.Join("/usr/local/share/parrot", hookFile),      // Manual system installation
+		filepath.Join(homeDir, ".local/share/parrot", hookFile), // make install (user local)
+		filepath.Join(".", hookFile),                            // Development
+	)
 	
 	for _, path := range possiblePaths {
 		if _, err := os.Stat(path); err == nil {
